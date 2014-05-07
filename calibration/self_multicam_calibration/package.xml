@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package>
+  <name>self_multicam_calibration</name>
+  <version>0.0.0</version>
+  <description>The self_multicam_calibration package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>camera_calibration</build_depend>
+  <build_depend>hand_eye_calibration</build_depend>
+  <build_depend>pose_graph</build_depend>
+  <build_depend>pose_imu_calibration</build_depend>
+  <build_depend>stereo_vo</build_depend>
+
+  <run_depend>camera_calibration</run_depend>
+  <run_depend>hand_eye_calibration</run_depend>
+  <run_depend>pose_graph</run_depend>
+  <run_depend>pose_imu_calibration</run_depend>
+  <run_depend>stereo_vo</run_depend>
+</package>

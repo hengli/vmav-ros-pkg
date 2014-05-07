@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<package>
+  <name>camera_calibration</name>
+  <version>0.0.0</version>
+  <description>The camera_calibration package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>camera_models</build_depend>
+  <build_depend>camera_systems</build_depend>
+  <build_depend>cauldron</build_depend>
+  <build_depend>ceres</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>image_transport</build_depend>
+  <build_depend>px_comm</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>sparse_graph</build_depend>
+
+  <run_depend>camera_models</run_depend>
+  <run_depend>camera_systems</run_depend>
+  <run_depend>cauldron</run_depend>
+  <run_depend>ceres</run_depend>
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>image_transport</run_depend>
+  <run_depend>px_comm</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>sparse_graph</run_depend>
+</package>
