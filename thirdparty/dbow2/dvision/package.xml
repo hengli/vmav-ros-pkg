@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package>
+  <name>dvision</name>
+  <version>0.0.0</version>
+  <description>The dvision package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>CC-BY-NC-SA</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>dutils</build_depend>
+  <build_depend>dutilscv</build_depend>
+
+  <run_depend>dutils</run_depend>
+  <run_depend>dutilscv</run_depend>
+</package>

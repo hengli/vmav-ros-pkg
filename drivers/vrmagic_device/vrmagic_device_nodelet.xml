@@ -1,0 +1,9 @@
+<library path="lib/libvrmagic_device_nodelet">
+  <class name="vrmagic_device/driver"
+         type="VRmagicDeviceNodelet"
+         base_class_type="nodelet::Nodelet">
+    <description> 
+      VRmagic device driver nodelet.
+    </description>
+  </class>
+</library>

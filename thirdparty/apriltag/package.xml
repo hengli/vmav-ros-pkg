@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package>
+  <name>apriltag</name>
+  <version>0.0.0</version>
+  <description>The apriltag package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>LGPLv3</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+</package>

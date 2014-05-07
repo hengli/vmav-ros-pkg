@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package>
+  <name>sparse_graph</name>
+  <version>0.0.0</version>
+  <description>The sparse_graph package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>BSD</license>
+
+  <build_depend>camera_models</build_depend>
+  <build_depend>cauldron</build_depend>
+  <build_depend>ceres</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+
+  <run_depend>camera_models</run_depend>
+  <run_depend>cauldron</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>visualization_msgs</run_depend>
+
+  <buildtool_depend>catkin</buildtool_depend>
+</package>

@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package>
+  <name>camera_systems</name>
+  <version>0.0.0</version>
+  <description>The camera_systems package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>camera_models</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>pugixml</build_depend>
+  
+  <run_depend>camera_models</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>pugixml</run_depend>
+</package>

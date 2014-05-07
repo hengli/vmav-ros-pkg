@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package>
+  <name>stereo_sm</name>
+  <version>0.0.0</version>
+  <description>The stereo_sm package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>ceres</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>pose_graph</build_depend>
+  <build_depend>px_comm</build_depend>
+  <build_depend>rosbag</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>stereo_vo</build_depend>
+
+  <run_depend>ceres</run_depend>
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>pose_graph</run_depend>
+  <run_depend>px_comm</run_depend>
+  <run_depend>rosbag</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>stereo_vo</run_depend>
+</package>

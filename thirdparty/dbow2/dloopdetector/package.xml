@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package>
+  <name>dloopdetector</name>
+  <version>0.0.0</version>
+  <description>The dloopdetector package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>CC-BY-NC-SA</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>dbow2</build_depend>
+
+  <run_depend>dbow2</run_depend>
+</package>

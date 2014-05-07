@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package>
+  <name>cauldron</name>
+  <version>0.0.0</version>
+  <description>The cauldron package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>BSD</license>
+
+  <build_depend>ceres</build_depend>
+
+  <buildtool_depend>catkin</buildtool_depend>
+</package>

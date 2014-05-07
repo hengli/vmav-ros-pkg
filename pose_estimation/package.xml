@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package>
+  <name>pose_estimation</name>
+  <version>0.0.0</version>
+  <description>The pose_estimation package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <build_depend>camera_systems</build_depend>
+  <build_depend>cauldron</build_depend>
+  <build_depend>ceres</build_depend>
+  
+  <run_depend>camera_systems</run_depend>
+  <run_depend>cauldron</run_depend>
+</package>

@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package>
+  <name>gcam_slam</name>
+  <version>0.0.0</version>
+  <description>The gcam_slam package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>gcam_vo</build_depend>
+  <build_depend>location_recognition</build_depend>
+  <build_depend>message_filters</build_depend>
+  <build_depend>px_comm</build_depend>
+  <build_depend>roscpp</build_depend>
+  
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>gcam_vo</run_depend>
+  <run_depend>location_recognition</run_depend>
+  <run_depend>message_filters</run_depend>
+  <run_depend>px_comm</run_depend>
+  <run_depend>roscpp</run_depend>
+</package>
