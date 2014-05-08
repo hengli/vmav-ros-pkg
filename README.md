@@ -6,11 +6,12 @@ ROS packages for vision-based MAVs.
 Required dependencies:
 
 1. [px-ros-pkg](https://github.com/cvg/px-ros-pkg)
-2. Boost >= 1.4.0 (Ubuntu package: libboost-all-dev)
-3. Eigen3 (Ubuntu package: libeigen3-dev)
-4. glog
-5. OpenCV >= 2.4.6
-6. SuiteSparse >= 4.2.1 (Ubuntu package: libsuitesparse-dev)
+2. [asctec_mav_framework](https://github.com/cvg/asctec_mav_framework)
+3. Boost >= 1.4.0 (Ubuntu package: libboost-all-dev)
+4. Eigen3 (Ubuntu package: libeigen3-dev)
+5. glog
+6. OpenCV >= 2.4.6
+7. SuiteSparse >= 4.2.1 (Ubuntu package: libsuitesparse-dev)
 
 If you use the packages for an academic publication, please cite the following paper:
 
