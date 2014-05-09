@@ -6,14 +6,15 @@ ROS packages for vision-based MAVs.
 Required dependencies:
 
 1. [px-ros-pkg](https://github.com/cvg/px-ros-pkg)
-2. [asctec_mav_framework](https://github.com/cvg/asctec_mav_framework)
-3. Boost >= 1.4.0 (Ubuntu package: libboost-all-dev)
-4. Eigen3 (Ubuntu package: libeigen3-dev)
-5. gflags (Ubuntu package: libgflags-dev)
-6. glog ([Source install](https://github.com/schuhschuh/gflags/archive/v2.1.1.tar.gz))
-7. OpenCV >= 2.4.6
-8. SuiteSparse >= 4.2.1 ([Source install](https://www.cise.ufl.edu/research/sparse/SuiteSparse/SuiteSparse-4.2.1.tar.gz))
-9. RTI Connext DDS >= 5.0.0 ([Source install](http://www.rti.com/downloads/connext-files.html))
+2. [ethzasl_sensor_fusion](https://github.com/cvg/ethzasl_sensor_fusion)
+3. [asctec_mav_framework](https://github.com/cvg/asctec_mav_framework)
+4. Boost >= 1.4.0 (Ubuntu package: libboost-all-dev)
+5. Eigen3 (Ubuntu package: libeigen3-dev)
+6. gflags (Ubuntu package: libgflags-dev)
+7. glog ([Source install](https://github.com/schuhschuh/gflags/archive/v2.1.1.tar.gz))
+8. OpenCV >= 2.4.6
+9. SuiteSparse >= 4.2.1 ([Source install](https://www.cise.ufl.edu/research/sparse/SuiteSparse/SuiteSparse-4.2.1.tar.gz))
+10. RTI Connext DDS >= 5.0.0 ([Source install](http://www.rti.com/downloads/connext-files.html))
 
 If you use the packages for an academic publication, please cite the following paper:
 
