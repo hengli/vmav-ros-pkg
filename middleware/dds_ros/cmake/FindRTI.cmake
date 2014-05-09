@@ -61,10 +61,12 @@ ENDMACRO(RTI_REPORT_NOT_FOUND)
 # TODO: Add standard Windows search locations for RTI.
 LIST(APPEND RTI_CHECK_INCLUDE_DIRS
   /opt/RTI/ndds.5.0.0/include
+  /opt/RTI/ndds.5.1.0/include
   /root/RTI/ndds.5.0.0/include)
 LIST(APPEND RTI_CHECK_LIBRARY_DIRS
   /opt/RTI/ndds.5.0.0/lib/i86Linux2.6gcc4.4.5
   /opt/RTI/ndds.5.0.0/lib/x64Linux2.6gcc4.4.5
+  /opt/RTI/ndds.5.1.0/lib/x64Linux2.6gcc4.4.5
   /root/RTI/ndds.5.0.0/lib/armv7neonhfLinux3.xgcc4.6.3)
 
 # Search supplied hint directories first if supplied.
