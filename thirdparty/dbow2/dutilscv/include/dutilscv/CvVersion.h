@@ -31,7 +31,11 @@
       #if CV_MINOR_VERSION == 3
         #define CV23 1
       #else
-        #define CV24 1
+        #if CV_SUBMINOR_VERSION == 8
+          #define CV248 1
+        #else
+          #define CV24 1
+        #endif
       #endif
     #endif
   #else
