@@ -13,6 +13,7 @@ Required dependencies:
 6. glog ([Source install](https://github.com/schuhschuh/gflags/archive/v2.1.1.tar.gz))
 7. OpenCV >= 2.4.6
 8. SuiteSparse >= 4.2.1 ([Source install](https://www.cise.ufl.edu/research/sparse/SuiteSparse/SuiteSparse-4.2.1.tar.gz))
+9. RTI Connext DDS >= 5.0.0 ([Source install](http://www.rti.com/downloads/connext-files.html))
 
 If you use the packages for an academic publication, please cite the following paper:
 
