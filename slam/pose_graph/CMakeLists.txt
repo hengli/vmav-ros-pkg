@@ -3,6 +3,7 @@ project(pose_graph)
 
 find_package(catkin REQUIRED COMPONENTS
   camera_systems
+  cmake_modules
   location_recognition
   pose_estimation
   roscpp
@@ -21,6 +22,7 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
   include
 )
 

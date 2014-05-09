@@ -31,7 +31,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ceres)
 
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS cmake_modules)
 
 # Make CMake aware of the cmake folder for local FindXXX scripts.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(stereo_vo)
 
-find_package(catkin REQUIRED COMPONENTS camera_systems cauldron ceres cv_bridge image_transport pose_estimation px_comm roscpp sparse_graph)
+find_package(catkin REQUIRED COMPONENTS camera_systems cauldron ceres cmake_modules cv_bridge image_transport pose_estimation px_comm roscpp sparse_graph)
 
 find_package(Boost REQUIRED COMPONENTS thread)
 find_package(Eigen REQUIRED)
@@ -16,8 +16,8 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIR}
-  ${Eigen_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   include
 )

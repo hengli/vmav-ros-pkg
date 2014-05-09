@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(camera_models)
 
-find_package(catkin REQUIRED COMPONENTS cauldron ceres px_comm)
+find_package(catkin REQUIRED COMPONENTS cauldron ceres cmake_modules px_comm)
 find_package(Eigen REQUIRED)
 find_package(OpenCV REQUIRED)
 
@@ -9,7 +9,7 @@ catkin_package(
  INCLUDE_DIRS include
  LIBRARIES camera_models
  CATKIN_DEPENDS cauldron ceres px_comm
- DEPENDS Eigen OpenCV
+ DEPENDS eigen opencv
 )
 
 ###########

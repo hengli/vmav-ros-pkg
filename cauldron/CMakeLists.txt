@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(cauldron)
 
-find_package(catkin REQUIRED COMPONENTS ceres)
+find_package(catkin REQUIRED COMPONENTS ceres cmake_modules)
 find_package(OpenCV REQUIRED)
 find_package(Eigen REQUIRED)
 

@@ -3,21 +3,24 @@ project(vicon_multicam_calibration)
 
 find_package(catkin REQUIRED
   camera_calibration
+  cmake_modules
   cv_bridge
   image_transport
   pose_imu_calibration
 )
 
 find_package(Boost REQUIRED COMPONENTS program_options thread)
+find_package(Eigen REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
-  DEPENDS boost
+  DEPENDS boost eigen
 )
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
   include
 )
 

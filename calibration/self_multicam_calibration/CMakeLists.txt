@@ -3,6 +3,7 @@ project(self_multicam_calibration)
 
 find_package(catkin REQUIRED COMPONENTS
   camera_calibration
+  cmake_modules
   cv_bridge
   hand_eye_calibration
   pose_graph
@@ -11,15 +12,17 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(Eigen REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
-  DEPENDS boost
+  DEPENDS boost eigen
 )
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
   include
 )
 

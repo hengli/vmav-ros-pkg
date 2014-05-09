@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(sparse_graph)
 
-find_package(catkin REQUIRED cauldron ceres roscpp sensor_msgs visualization_msgs)
+find_package(catkin REQUIRED cauldron ceres cmake_modules roscpp sensor_msgs visualization_msgs)
 
 find_package(Boost REQUIRED COMPONENTS filesystem system)
 find_package(Eigen REQUIRED)
@@ -16,7 +16,7 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
   ${Eigen_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   include

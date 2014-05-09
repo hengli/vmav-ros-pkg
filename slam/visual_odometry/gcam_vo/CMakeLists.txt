@@ -4,6 +4,7 @@ project(gcam_vo)
 find_package(catkin REQUIRED COMPONENTS
   camera_systems
   ceres
+  cmake_modules
   cv_bridge
   gcam
   message_filters
@@ -26,8 +27,8 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIR}
-  ${Eigen_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   include
 )

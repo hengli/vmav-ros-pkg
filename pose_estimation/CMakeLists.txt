@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(pose_estimation)
 
-find_package(catkin REQUIRED camera_systems cauldron ceres)
+find_package(catkin REQUIRED camera_systems cauldron ceres cmake_modules)
 
 find_package(Eigen REQUIRED)
 

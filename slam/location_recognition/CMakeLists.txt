@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(location_recognition)
 
-find_package(catkin REQUIRED COMPONENTS dbow2 dloopdetector sparse_graph)
+find_package(catkin REQUIRED COMPONENTS cmake_modules dbow2 dloopdetector sparse_graph)
 
 find_package(Boost REQUIRED COMPONENTS program_options)
 find_package(Eigen REQUIRED)
@@ -16,7 +16,7 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
   ${Eigen_INCLUDE_DIRS}
   include
 )

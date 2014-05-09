@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(gcam_slam)
 
 find_package(catkin REQUIRED COMPONENTS
+  cmake_modules
   cv_bridge
   gcam_vo
   location_recognition
@@ -11,17 +12,19 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(Eigen REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES gcam_slam
   CATKIN_DEPENDS gcam_vo
-#  DEPENDS system_lib
+  DEPENDS eigen
 )
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
   include
 )
 

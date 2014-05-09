@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(hand_eye_calibration)
 
-find_package(catkin REQUIRED COMPONENTS cauldron ceres)
+find_package(catkin REQUIRED COMPONENTS cauldron ceres cmake_modules)
 
 find_package(Eigen REQUIRED)
 

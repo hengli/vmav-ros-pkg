@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(camera_systems)
 
-find_package(catkin REQUIRED COMPONENTS camera_models geometry_msgs pugixml)
+find_package(catkin REQUIRED COMPONENTS camera_models cmake_modules geometry_msgs pugixml)
 find_package(Boost REQUIRED COMPONENTS filesystem system)
 find_package(Eigen REQUIRED)
 

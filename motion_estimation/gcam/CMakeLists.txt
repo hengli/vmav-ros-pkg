@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(gcam)
 
-find_package(catkin REQUIRED COMPONENTS camera_systems ceres)
+find_package(catkin REQUIRED COMPONENTS camera_systems ceres cmake_modules)
 find_package(Eigen REQUIRED)
 
 catkin_package(

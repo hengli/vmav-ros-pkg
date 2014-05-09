@@ -10,6 +10,7 @@
   <build_depend>camera_models</build_depend>
   <build_depend>cauldron</build_depend>
   <build_depend>ceres</build_depend>
+  <build_depend>cmake_modules</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>visualization_msgs</build_depend>

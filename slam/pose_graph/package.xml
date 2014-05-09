@@ -10,6 +10,7 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <build_depend>camera_systems</build_depend>
+  <build_depend>cmake_modules</build_depend>
   <build_depend>location_recognition</build_depend>
   <build_depend>pose_estimation</build_depend>
   <build_depend>roscpp</build_depend>
