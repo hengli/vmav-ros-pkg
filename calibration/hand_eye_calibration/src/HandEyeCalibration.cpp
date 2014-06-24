@@ -5,6 +5,7 @@
 #include "cauldron/EigenQuaternionParameterization.h"
 #include "cauldron/EigenUtils.h"
 #include "ceres/ceres.h"
+#include "ceres/rotation.h"
 #include "hand_eye_calibration/DualQuaternion.h"
 
 namespace px

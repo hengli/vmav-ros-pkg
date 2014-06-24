@@ -1,7 +1,6 @@
 #ifndef EIGENUTILS_H
 #define EIGENUTILS_H
 
-#include <ceres/rotation.h>
 #include <Eigen/Dense>
 
 #include "cauldron/cauldron.h"
@@ -75,30 +74,6 @@ void QuaternionToAngleAxis(const T* const q, Eigen::Matrix<T, 3, 1>& rvec)
     angleaxis.fromRotationMatrix(rmat);
 
     rvec = angleaxis.angle() * angleaxis.axis();
-}
-
-template<typename T>
-Eigen::Matrix<T, 3, 3> QuaternionToRotation(const T* const q)
-{
-    T R[9];
-    ceres::QuaternionToRotation(q, R);
-
-    Eigen::Matrix<T, 3, 3> rmat;
-    for (int i = 0; i < 3; ++i)
-    {
-        for (int j = 0; j < 3; ++j)
-        {
-            rmat(i,j) = R[i * 3 + j];
-        }
-    }
-
-    return rmat;
-}
-
-template<typename T>
-void QuaternionToRotation(const T* const q, T* rot)
-{
-    ceres::QuaternionToRotation(q, rot);
 }
 
 template<typename T>
@@ -194,52 +169,6 @@ Eigen::Matrix<T, 4, 4> homogeneousTransform(const Eigen::Matrix<T, 3, 3>& R, con
     H.block(0,3,3,1) = t;
 
     return H;
-}
-
-template<typename T>
-Eigen::Matrix<T, 4, 4> poseWithCartesianTranslation(const T* const q, const T* const p)
-{
-    Eigen::Matrix<T, 4, 4> pose = Eigen::Matrix<T, 4, 4>::Identity();
-
-    T rotation[9];
-    ceres::QuaternionToRotation(q, rotation);
-    for (int i = 0; i < 3; ++i)
-    {
-        for (int j = 0; j < 3; ++j)
-        {
-            pose(i,j) = rotation[i * 3 + j];
-        }
-    }
-
-    pose(0,3) = p[0];
-    pose(1,3) = p[1];
-    pose(2,3) = p[2];
-
-    return pose;
-}
-
-template<typename T>
-Eigen::Matrix<T, 4, 4> poseWithSphericalTranslation(const T* const q, const T* const p, const T scale = T(1.0))
-{
-    Eigen::Matrix<T, 4, 4> pose = Eigen::Matrix<T, 4, 4>::Identity();
-
-    T rotation[9];
-    ceres::QuaternionToRotation(q, rotation);
-    for (int i = 0; i < 3; ++i)
-    {
-        for (int j = 0; j < 3; ++j)
-        {
-            pose(i,j) = rotation[i * 3 + j];
-        }
-    }
-
-    T theta = p[0];
-    T phi = p[1];
-    pose(0,3) = sin(theta) * cos(phi) * scale;
-    pose(1,3) = sin(theta) * sin(phi) * scale;
-    pose(2,3) = cos(theta) * scale;
-
-    return pose;
 }
 
 // Returns the Sampson error of a given essential matrix and 2 image points

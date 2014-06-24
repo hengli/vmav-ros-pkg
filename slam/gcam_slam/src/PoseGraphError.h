@@ -2,6 +2,7 @@
 #define POSEGRAPHERROR_H
 
 #include "cauldron/EigenUtils.h"
+#include "ceres/rotation.h"
 #include "sparse_graph/Transform.h"
 
 namespace px
