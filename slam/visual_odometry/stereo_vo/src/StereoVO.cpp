@@ -4,7 +4,6 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/nonfree/nonfree.hpp>
 #include <ros/ros.h>
 
 #include "cauldron/EigenUtils.h"
@@ -51,8 +50,6 @@ StereoVO::init(const std::string& detectorType,
                const std::string& descriptorMatcherType)
 {
     boost::lock_guard<boost::mutex> lock(m_globalMutex);
-
-    cv::initModule_nonfree();
 
     m_featureDetector = cv::FeatureDetector::create(detectorType);
     if (!m_featureDetector)

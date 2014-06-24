@@ -1,7 +1,7 @@
 #ifndef DATABUFFER_H
 #define DATABUFFER_H
 
-#include <boost/thread/mutex.hpp>
+#include <boost/thread.hpp>
 #include <vector>
 
 namespace px

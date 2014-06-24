@@ -39,6 +39,9 @@
 #if CV24
 #include <opencv2/nonfree/features2d.hpp>
 #endif
+#if CV248
+#include <opencv2/features2d/features2d.hpp>
+#endif
 
 
 
