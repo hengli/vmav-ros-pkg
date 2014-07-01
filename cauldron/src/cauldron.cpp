@@ -410,6 +410,102 @@ bresLine(int x0, int y0, int x1, int y1)
     return cells;
 }
 
+std::vector<Eigen::Vector3i, Eigen::aligned_allocator<Eigen::Vector3i> >
+bresLine(int x0, int y0, int z0, int x1, int y1, int z1)
+{
+    // Bresenham's line algorithm
+    // Find cells intersected by line between (x0,y0,z0) and (x1,y1,z1)
+
+    std::vector<Eigen::Vector3i, Eigen::aligned_allocator<Eigen::Vector3i> > cells;
+
+    int dx = std::abs(x1 - x0);
+    int dy = std::abs(y1 - y0);
+    int dz = std::abs(z1 - z0);
+
+    int dx2 = dx << 1;
+    int dy2 = dy << 1;
+    int dz2 = dz << 1;
+
+    int sx = (x0 < x1) ? 1 : -1;
+    int sy = (y0 < y1) ? 1 : -1;
+    int sz = (z0 < z1) ? 1 : -1;
+
+    if ((dx >= dy) && (dx >= dz))
+    {
+        int e1 = dy2 - dx;
+        int e2 = dz2 - dx;
+
+        for (int i = 0; i <= dx; ++i)
+        {
+            cells.push_back(Eigen::Vector3i(x0, y0, z0));
+
+            if (e1 > 0)
+            {
+                y0 += sy;
+                e1 -= dx2;
+            }
+            if (e2 > 0)
+            {
+                z0 += sz;
+                e2 -= dx2;
+            }
+            e1 += dy2;
+            e2 += dz2;
+            x0 += sx;
+        }
+    }
+    else if ((dy >= dx) && (dy >= dz))
+    {
+        int e1 = dx2 - dy;
+        int e2 = dz2 - dy;
+
+        for (int i = 0; i <= dy; ++i)
+        {
+            cells.push_back(Eigen::Vector3i(x0, y0, z0));
+
+            if (e1 > 0)
+            {
+                x0 += sx;
+                e1 -= dy2;
+            }
+            if (e2 > 0)
+            {
+                z0 += sz;
+                e2 -= dy2;
+            }
+            e1 += dx2;
+            e2 += dz2;
+            y0 += sy;
+        }
+    }
+    else
+    {
+        int e1 = dy2 - dz;
+        int e2 = dx2 - dz;
+
+        for (int i = 0; i <= dz; ++i)
+        {
+            cells.push_back(Eigen::Vector3i(x0, y0, z0));
+
+            if (e1 > 0)
+            {
+                y0 += sy;
+                e1 -= dz2;
+            }
+            if (e2 > 0)
+            {
+                x0 += sx;
+                e2 -= dz2;
+            }
+            e1 += dy2;
+            e2 += dx2;
+            z0 += sz;
+        }
+    }
+
+    return cells;
+}
+
 std::vector<Eigen::Vector2i, Eigen::aligned_allocator<Eigen::Vector2i> >
 bresCircle(int x0, int y0, int r)
 {
@@ -417,7 +513,66 @@ bresCircle(int x0, int y0, int r)
     // Find cells intersected by circle with center (x0,y0) and radius r
 
     std::vector< std::vector<bool> > mask(2 * r + 1);
-    
+
+    for (int i = 0; i < 2 * r + 1; ++i)
+    {
+        mask[i].resize(2 * r + 1);
+        for (int j = 0; j < 2 * r + 1; ++j)
+        {
+            mask[i][j] = false;
+        }
+    }
+
+    int x = r;
+    int y = 0;
+    int r_err = 1 - x;
+
+    while (x >= y)
+    {
+        mask[x + r][y + r] = true;
+        mask[y + r][x + r] = true;
+        mask[-x + r][y + r] = true;
+        mask[-y + r][x + r] = true;
+        mask[-x + r][-y + r] = true;
+        mask[-y + r][-x + r] = true;
+        mask[x + r][-y + r] = true;
+        mask[y + r][-x + r] = true;
+
+        ++y;
+        if (r_err < 0)
+        {
+            r_err += 2 * y + 1;
+        }
+        else
+        {
+            --x;
+            r_err += 2 * (y - x + 1);
+        }
+    }
+
+    std::vector<Eigen::Vector2i, Eigen::aligned_allocator<Eigen::Vector2i> > cells;
+    for (int i = 0; i < 2 * r + 1; ++i)
+    {
+        for (int j = 0; j < 2 * r + 1; ++j)
+        {
+            if (mask[i][j])
+            {
+                cells.push_back(Eigen::Vector2i(i - r + x0, j - r + y0));
+            }
+        }
+    }
+
+    return cells;
+}
+
+std::vector<Eigen::Vector2i, Eigen::aligned_allocator<Eigen::Vector2i> >
+bresFilledCircle(int x0, int y0, int r)
+{
+    // Bresenham's circle algorithm
+    // Find cells intersected and contained by circle with center (x0,y0) and radius r
+
+    std::vector< std::vector<bool> > mask(2 * r + 1);
+
     for (int i = 0; i < 2 * r + 1; ++i)
     {
         mask[i].resize(2 * r + 1);
@@ -512,6 +667,45 @@ bresCircle(int x0, int y0, int r)
             {
                 cells.push_back(Eigen::Vector2i(i - r + x0, j - r + y0));
             }
+        }
+    }
+
+    return cells;
+}
+
+std::vector<Eigen::Vector3i, Eigen::aligned_allocator<Eigen::Vector3i> >
+bresFilledSphere(int x0, int y0, int z0, int r)
+{
+    // Find cells intersected and contained by sphere with center (x0,y0,z0) and radius r
+
+    std::vector<Eigen::Vector2i, Eigen::aligned_allocator<Eigen::Vector2i> > zCircle;
+    zCircle = bresCircle(0, 0, r);
+
+    std::vector<Eigen::Vector3i, Eigen::aligned_allocator<Eigen::Vector3i> > cells;
+
+    for (size_t i = 0; i < zCircle.size(); ++i)
+    {
+        const Eigen::Vector2i& zCell = zCircle.at(i);
+
+        int z = zCell(0) + z0;
+        int r = zCell(1);
+
+        if (r < 0)
+        {
+            continue;
+        }
+
+        std::vector<Eigen::Vector2i, Eigen::aligned_allocator<Eigen::Vector2i> > circCells;
+        circCells = bresFilledCircle(x0, y0, r);
+
+        cells.reserve(cells.size() + circCells.size());
+
+        for (size_t j = 0; j < circCells.size(); ++j)
+        {
+            Eigen::Vector3i p;
+            p << circCells.at(j), z;
+
+            cells.push_back(p);
         }
     }
 

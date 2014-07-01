@@ -86,7 +86,10 @@ bool colormap(const std::string& name, unsigned char idx,
               float& r, float& g, float& b);
 
 std::vector<Eigen::Vector2i, Eigen::aligned_allocator<Eigen::Vector2i> > bresLine(int x0, int y0, int x1, int y1);
+std::vector<Eigen::Vector3i, Eigen::aligned_allocator<Eigen::Vector3i> > bresLine(int x0, int y0, int z0, int x1, int y1, int z1);
 std::vector<Eigen::Vector2i, Eigen::aligned_allocator<Eigen::Vector2i> > bresCircle(int x0, int y0, int r);
+std::vector<Eigen::Vector2i, Eigen::aligned_allocator<Eigen::Vector2i> > bresFilledCircle(int x0, int y0, int r);
+std::vector<Eigen::Vector3i, Eigen::aligned_allocator<Eigen::Vector3i> > bresFilledSphere(int x0, int y0, int z0, int r);
 
 void LLtoUTM(double latitude, double longitude,
              double& utmNorthing, double& utmEasting,
