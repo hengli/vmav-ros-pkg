@@ -22,6 +22,19 @@ If you use the packages for an academic publication, please cite the following p
     Self-Calibration and Visual SLAM with a Multi-Camera System on a Micro Aerial Vehicle,
     In Proc. Robotics: Science and Systems (RSS), 2014.
 
+
+#### Hardware Synchronization Between Sensors ####
+
+For hardware synchronization between the IMU on any AscTec platform and a single/multi-camera system, perform the following steps:  
+
+1. Connect a cable between the GPIO pins on the autopilot (ground pin: GND, trigger signal pin: P1.16) and the correct pins on the camera hardware. The GPIO pins on the autopilot are shown in http://wiki.asctec.de/display/AR/I2C%2C+SPI%2C+GPIO.  
+2. Compile the autopilot firmware from https://github.com/cvg/asctec_mav_framework/tree/experimental/asctec_hl_firmware.
+Note that this firmware differs from the official ethz-asl version, as I modified the firmware to support camera triggering).  
+3. Flash the autopilot firmware by following the instructions in http://wiki.asctec.de/display/AR/SDK+Setup+for+Linux.  
+4. Now you can adjust the camera trigger rate by modifying the value for the trigger_rate_cam parameter that is used by the asctec_hl_interface package.  
+5. Each time the autopilot sends a trigger signal to the camera(s), the autopilot records the IMU data at that point of time. The asctec_hl_interface package publishes both a CamTrigger message and sensor_msgs::Imu message. Information in these messages can be used to infer which IMU message corresponds to a given camera image.  
+
+
 #### Acknowledgements ####
 
 The primary author, Lionel Heng, is funded by the DSO Postgraduate Scholarship. This work is partially supported by the SNSF V-MAV grant (DACH framework).
