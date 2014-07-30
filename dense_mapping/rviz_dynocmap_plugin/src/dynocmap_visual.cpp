@@ -102,7 +102,10 @@ DynocMapVisual::setMessage(const dynocmap_msgs::DynocMap::ConstPtr& msg)
 
             if (!item.dynamic)
             {
-                destroyObject(item.boundaryObject);
+                if (m_showBoundary)
+                {
+                    destroyObject(item.boundaryObject);
+                }
                 destroyObject(item.tileObject);
                 if (m_showBoundary)
                 {
@@ -128,7 +131,10 @@ DynocMapVisual::setMessage(const dynocmap_msgs::DynocMap::ConstPtr& msg)
 
         if (item.dynamic != item.tileObject->getDynamic())
         {
-            destroyObject(item.boundaryObject);
+            if (m_showBoundary)
+            {
+                destroyObject(item.boundaryObject);
+            }
             destroyObject(item.tileObject);
             if (m_showBoundary)
             {

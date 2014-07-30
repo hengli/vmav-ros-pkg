@@ -775,7 +775,7 @@ OcTree::castRays(const Eigen::Matrix4d& sensorPose, const cv::Mat& depthImage,
             const cv::Vec3f* data = pyramid.back().ptr<cv::Vec3f>(r);
             for (int c = 0; c < pyramid.back().cols; ++c)
             {
-                if (data[c][0] < 0.0f)
+                if (data[c][0] < 1e-10)
                 {
                     continue;
                 }
@@ -801,7 +801,7 @@ OcTree::castRays(const Eigen::Matrix4d& sensorPose, const cv::Mat& depthImage,
                 cv::Vec3f pixel = image.at<cv::Vec3f>(it->y, it->x);
                 float z = pixel[0];
 
-                if (z < 0.0f)
+                if (z < 1e-10)
                 {
                     continue;
                 }
@@ -847,7 +847,7 @@ OcTree::castRays(const Eigen::Matrix4d& sensorPose, const cv::Mat& depthImage,
             {
                 float z = depth[c];
 
-                if (z < 0.0f)
+                if (z < 1e-10)
                 {
                     continue;
                 }

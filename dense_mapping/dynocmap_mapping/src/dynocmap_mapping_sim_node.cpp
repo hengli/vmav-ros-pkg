@@ -57,14 +57,7 @@ void callback(const geometry_msgs::PoseStamped::ConstPtr& poseMsg,
         {
             const float* P_data = reinterpret_cast<const float*>(data + nPoints * cloudMsg->point_step);
 
-            if (P_data[2] > rangeThresh)
-            {
-                depthImage.at<float>(r, cloudMsg->width - c - 1) = k_maxRange + 1.0;
-            }
-            else
-            {
-                depthImage.at<float>(r, cloudMsg->width - c - 1) = P_data[2];
-            }
+            depthImage.at<float>(r, cloudMsg->width - c - 1) = P_data[2];
 
             ++nPoints;
         }
