@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package>
+  <name>dynocmap_mapping</name>
+  <version>0.0.0</version>
+  <description>The dynocmap_mapping package</description>
+
+  <maintainer email="hengli@inf.ethz.ch">Lionel Heng</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>cmake_modules</build_depend>
+  <build_depend>dynocmap</build_depend>
+  <build_depend>message_filters</build_depend>
+  <build_depend>pcl_conversions</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>tf_conversions</build_depend>
+
+  <run_depend>dynocmap</run_depend>
+  <run_depend>message_filters</run_depend>
+  <run_depend>pcl_conversions</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>tf_conversions</run_depend>
+</package>

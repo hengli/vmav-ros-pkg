@@ -1,0 +1,13 @@
+<library path="lib/librviz_dynocmap_plugin">
+
+  <class name="rviz_dynocmap_plugin/DynocMap"
+         type="rviz::DynocMapDisplay"
+         base_class_type="rviz::Display">
+
+    <description>
+      Displays a dynocmap_msgs::DynocMap message.
+    </description>
+
+  </class>
+
+</library>
