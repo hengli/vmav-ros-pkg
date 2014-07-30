@@ -16,12 +16,16 @@ Required dependencies:
 9. SuiteSparse >= 4.2.1 ([Source install](https://www.cise.ufl.edu/research/sparse/SuiteSparse/SuiteSparse-4.2.1.tar.gz))
 10. RTI Connext DDS >= 5.1.0 ([Source install](http://www.rti.com/downloads/connext-files.html) to /opt)
 
-If you use the packages for an academic publication, please cite the following paper:
+If you use the packages for an academic publication, please cite either or both of the following papers depending on which packages you use:
 
     Lionel Heng, Gim Hee Lee, and Marc Pollefeys,
     Self-Calibration and Visual SLAM with a Multi-Camera System on a Micro Aerial Vehicle,
     In Proc. Robotics: Science and Systems (RSS), 2014.
-
+    
+    Lionel Heng, Dominik Honegger, Gim Hee Lee, Lorenz Meier,
+    Petri Tanskanen, Friedrich Fraundorfer, and Marc Pollefeys,
+    Autonomous Visual Mapping and Exploration With a Micro Aerial Vehicle,
+    Journal of Field Robotics (JFR), 31(4):654-675, 2014.
 
 #### Hardware Synchronization Between Sensors ####
 
