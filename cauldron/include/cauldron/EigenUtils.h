@@ -1,6 +1,7 @@
 #ifndef EIGENUTILS_H
 #define EIGENUTILS_H
 
+#include <boost/functional/hash.hpp>
 #include <Eigen/Dense>
 
 #include "cauldron/cauldron.h"
@@ -344,6 +345,45 @@ estimate3DRigidSimilarityTransform(const std::vector<Eigen::Matrix<T, 3, 1>, Eig
 
     return homogeneousTransform(sR, t);
 }
+
+struct Vector2i_equal_to: std::binary_function<Eigen::Vector2i, Eigen::Vector2i, bool>
+{
+    bool operator()(const Eigen::Vector2i& p1, const Eigen::Vector2i& p2) const
+    {
+        return p1 == p2;
+    }
+};
+
+struct Vector2i_hash: std::unary_function<Eigen::Vector2i, std::size_t>
+{
+    std::size_t operator()(const Eigen::Vector2i& p) const
+    {
+        std::size_t seed = 0;
+        boost::hash_combine(seed, p(0));
+        boost::hash_combine(seed, p(1));
+        return seed;
+    }
+};
+
+struct Vector3i_equal_to: std::binary_function<Eigen::Vector3i, Eigen::Vector3i, bool>
+{
+    bool operator()(const Eigen::Vector3i& p1, const Eigen::Vector3i& p2) const
+    {
+        return p1 == p2;
+    }
+};
+
+struct Vector3i_hash: std::unary_function<Eigen::Vector3i, std::size_t>
+{
+    std::size_t operator()(const Eigen::Vector3i& p) const
+    {
+        std::size_t seed = 0;
+        boost::hash_combine(seed, p(0));
+        boost::hash_combine(seed, p(1));
+        boost::hash_combine(seed, p(2));
+        return seed;
+    }
+};
 
 }
 
