@@ -247,7 +247,7 @@ OcTree::maximumLeafCount(void) const
     return count;
 }
 
-std::vector<OccupancyCell>
+std::vector<OccupancyCell, Eigen::aligned_allocator<OccupancyCell> >
 OcTree::leafs(void) const
 {
     int depth = 0;
@@ -298,7 +298,7 @@ OcTree::leafs(void) const
         ++depth;
     }
 
-    std::vector<OccupancyCell> cells;
+    std::vector<OccupancyCell, Eigen::aligned_allocator<OccupancyCell> > cells;
     cells.reserve(queue.size());
 
     for (std::vector<LabeledNode>::iterator it = queue.begin();
@@ -318,7 +318,7 @@ OcTree::leafs(void) const
     return cells;
 }
 
-std::vector<OccupancyCell>
+std::vector<OccupancyCell, Eigen::aligned_allocator<OccupancyCell> >
 OcTree::obstacles(void) const
 {
     int depth = 0;
@@ -370,7 +370,7 @@ OcTree::obstacles(void) const
         ++depth;
     }
 
-    std::vector<OccupancyCell> obstacles;
+    std::vector<OccupancyCell, Eigen::aligned_allocator<OccupancyCell> > obstacles;
     obstacles.reserve(queue.size());
 
     for (std::vector<LabeledNode>::iterator it = queue.begin();

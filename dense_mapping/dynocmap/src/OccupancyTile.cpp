@@ -68,25 +68,25 @@ OccupancyTile::tileGridCenter(void) const
     return m_tileGridCenter;
 }
 
-std::vector<OccupancyCell>&
+std::vector<OccupancyCell, Eigen::aligned_allocator<OccupancyCell> >&
 OccupancyTile::cells(void)
 {
     return m_cells;
 }
 
-const std::vector<OccupancyCell>&
+const std::vector<OccupancyCell, Eigen::aligned_allocator<OccupancyCell> >&
 OccupancyTile::cells(void) const
 {
     return m_cells;
 }
 
-std::vector<OccupancyCell>&
+std::vector<OccupancyCell, Eigen::aligned_allocator<OccupancyCell> >&
 OccupancyTile::obstacles(void)
 {
     return m_obstacles;
 }
 
-const std::vector<OccupancyCell>&
+const std::vector<OccupancyCell, Eigen::aligned_allocator<OccupancyCell> >&
 OccupancyTile::obstacles(void) const
 {
     return m_obstacles;

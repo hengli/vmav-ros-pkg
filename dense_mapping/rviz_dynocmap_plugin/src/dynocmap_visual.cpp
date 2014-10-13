@@ -73,7 +73,7 @@ DynocMapVisual::setMessage(const dynocmap_msgs::DynocMap::ConstPtr& msg)
 
     double resolution = map.resolution();
 
-    std::vector<px::OccupancyTile> tiles = map.tiles();
+    std::vector<px::OccupancyTile, Eigen::aligned_allocator<px::OccupancyTile> > tiles = map.tiles();
 
     for (size_t i = 0; i < tiles.size(); ++i)
     {
@@ -288,7 +288,7 @@ void
 DynocMapVisual::drawTileData(TileItem& item)
 {
     double resolution = item.tileData->resolution();
-    const std::vector<px::OccupancyCell>& obstacles = item.tileData->obstacles();
+    const std::vector<px::OccupancyCell, Eigen::aligned_allocator<px::OccupancyCell> >& obstacles = item.tileData->obstacles();
 
     if (item.dynamic)
     {

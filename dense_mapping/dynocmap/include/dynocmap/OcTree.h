@@ -45,8 +45,8 @@ public:
 
     size_t maximumLeafCount(void) const;
 
-    std::vector<OccupancyCell> leafs(void) const;
-    std::vector<OccupancyCell> obstacles(void) const;
+    std::vector<OccupancyCell, Eigen::aligned_allocator<OccupancyCell> > leafs(void) const;
+    std::vector<OccupancyCell, Eigen::aligned_allocator<OccupancyCell> > obstacles(void) const;
 
     double width(void) const;
     int gridWidth(void) const;

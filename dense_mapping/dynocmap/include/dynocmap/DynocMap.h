@@ -59,7 +59,7 @@ public:
     double mapWidth(void) const;
     double tileWidth(void) const;
 
-    std::vector<OccupancyTile> tiles(void) const;
+    std::vector<OccupancyTile, Eigen::aligned_allocator<OccupancyTile> > tiles(void) const;
 
     bool read(const boost::multi_array<char, 1>& data);
     bool write(boost::multi_array<char, 1>& data) const;

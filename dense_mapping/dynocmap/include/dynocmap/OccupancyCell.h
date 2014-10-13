@@ -6,6 +6,8 @@ namespace px
 
 typedef struct
 {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
     Eigen::Vector3i coords;
     unsigned short width;
     float occupancyLogOdds;

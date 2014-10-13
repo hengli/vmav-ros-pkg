@@ -349,10 +349,10 @@ DynocMap::tileWidth(void) const
     return tileGridWidth() * m_resolution;
 }
 
-std::vector<OccupancyTile>
+std::vector<OccupancyTile, Eigen::aligned_allocator<OccupancyTile> >
 DynocMap::tiles(void) const
 {
-    std::vector<OccupancyTile> otiles(m_mapGrid.size());
+    std::vector<OccupancyTile, Eigen::aligned_allocator<OccupancyTile> > otiles(m_mapGrid.size());
 
     for (size_t i = 0; i < m_mapGrid.size(); ++i)
     {
