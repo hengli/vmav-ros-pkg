@@ -1,6 +1,7 @@
-#include <boost/foreach.hpp>
+#include <boost/algorithm/string.hpp>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/foreach.hpp>
 #include <boost/program_options.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <fstream>
@@ -19,10 +20,31 @@
 #include "self_multicam_calibration/SelfMultiCamCalibration.h"
 
 bool
+parseTokenFromString(std::string& s, std::string& token, size_t& pos)
+{
+    if (s.empty())
+    {
+        return false;
+    }
+
+	pos = s.find(" ");
+	token = s.substr(0, pos);
+	s.erase(0, pos + 1);
+
+	return true;
+}
+
+bool
 parseConfigFile(const std::string& configFilename,
                 std::vector<std::vector<std::string> >& cameraNs,
                 std::string& imuTopicName)
 {
+    bool hasStereo = false;
+    bool hasIMU = false;
+
+    cameraNs.clear();
+    imuTopicName.clear();
+
     std::ifstream ifs(configFilename.c_str());
 
     if (!ifs.is_open())
@@ -30,37 +52,87 @@ parseConfigFile(const std::string& configFilename,
         return false;
     }
 
-    std::vector<std::string> buffer;
     while (ifs.good())
     {
-        std::string tmp;
-        std::getline(ifs, tmp);
+        std::string s;
+        std::getline(ifs, s);
 
-        if (!tmp.empty())
+        if (s.empty())
         {
-            buffer.push_back(tmp);
+        	continue;
+        }
+
+        size_t pos = 0;
+        std::string token;
+
+        if (!parseTokenFromString(s, token, pos))
+        {
+        	continue;
+        }
+
+        if (boost::iequals(token, "stereo"))
+        {
+            std::string leftTopicName;
+            std::string rightTopicName;
+
+            if (!parseTokenFromString(s, leftTopicName, pos))
+            {
+                ROS_ERROR("The stereo camera sensor is improperly defined.");
+                return false;
+            }
+
+            if (!parseTokenFromString(s, rightTopicName, pos))
+            {
+                ROS_ERROR("The stereo camera sensor is improperly defined.");
+                return false;
+            }
+
+            cameraNs.push_back(std::vector<std::string>());
+            cameraNs.back().push_back(leftTopicName);
+            cameraNs.back().push_back(rightTopicName);
+
+            hasStereo = true;
+        }
+        else if (boost::iequals(token, "mono"))
+        {
+            std::string topicName;
+
+            if (!parseTokenFromString(s, topicName, pos))
+            {
+                ROS_ERROR("The mono camera sensor is improperly defined.");
+                return false;
+            }
+
+            cameraNs.push_back(std::vector<std::string>());
+            cameraNs.back().push_back(topicName);
+        }
+        else if (boost::iequals(token, "imu"))
+        {
+            if (hasIMU)
+            {
+                ROS_ERROR("A duplicate definition was found for the imu sensor.");
+                return false;
+            }
+
+            if (!parseTokenFromString(s, imuTopicName, pos))
+            {
+                ROS_ERROR("The IMU sensor is improperly defined.");
+                return false;
+            }
+
+            hasIMU = true;
+        }
+        else
+        {
+            ROS_ERROR("Unknown sensor type: %s", token.c_str());
+            return false;
         }
     }
 
-    if (buffer.size() < 3)
+    if (!hasStereo || !hasIMU)
     {
         return false;
     }
-
-    if ((buffer.size() - 1) % 2 != 0)
-    {
-        return false;
-    }
-
-    int nStereoCams = buffer.size() / 2;
-    cameraNs.resize(nStereoCams);
-    for (int i = 0; i < nStereoCams; ++i)
-    {
-        cameraNs.at(i).push_back(buffer.at(i * 2));
-        cameraNs.at(i).push_back(buffer.at(i * 2 + 1));
-    }
-
-    imuTopicName = buffer.at(nStereoCams * 2);
 
     return true;
 }
@@ -169,9 +241,13 @@ main(int argc, char** argv)
         return 1;
     }
 
-    int nStereoCams = cameraNs.size();
+    size_t nCams = 0;
+    for (size_t i = 0; i < cameraNs.size(); ++i)
+    {
+        nCams += cameraNs.at(i).size();
+    }
 
-    px::CameraSystemPtr cameraSystem = boost::make_shared<px::CameraSystem>(nStereoCams * 2);
+    px::CameraSystemPtr cameraSystem = boost::make_shared<px::CameraSystem>(nCams);
 
     rosbag::Bag bag;
     try
@@ -186,12 +262,13 @@ main(int argc, char** argv)
 
     std::vector<std::string> camInfoTopicNames;
     std::vector<std::string> camImageTopicNames;
-    for (int i = 0; i < nStereoCams; ++i)
+    for (size_t i = 0; i < cameraNs.size(); ++i)
     {
-        camInfoTopicNames.push_back(cameraNs.at(i).at(0) + "/camera_info");
-        camInfoTopicNames.push_back(cameraNs.at(i).at(1) + "/camera_info");
-        camImageTopicNames.push_back(cameraNs.at(i).at(0) + "/image_raw");
-        camImageTopicNames.push_back(cameraNs.at(i).at(1) + "/image_raw");
+        for (size_t j = 0; j < cameraNs.at(i).size(); ++j)
+        {
+            camInfoTopicNames.push_back(cameraNs.at(i).at(j) + "/camera_info");
+            camImageTopicNames.push_back(cameraNs.at(i).at(j) + "/image_raw");
+        }
     }
 
     std::vector<std::string> topics;
@@ -206,16 +283,16 @@ main(int argc, char** argv)
     boost::shared_ptr<px::SelfMultiCamCalibration> sc;
     px::SparseGraphPtr sparseGraph = boost::make_shared<px::SparseGraph>();
 
-    std::vector<boost::shared_ptr<BagSubscriber<sensor_msgs::Image> > > imageSubs(nStereoCams * 2);
+    std::vector<boost::shared_ptr<BagSubscriber<sensor_msgs::Image> > > imageSubs(nCams);
     for (size_t i = 0; i < imageSubs.size(); ++i)
     {
         imageSubs.at(i) = boost::make_shared<BagSubscriber<sensor_msgs::Image> >();
     }
 
-    std::vector<px::CameraPtr> cameras(nStereoCams * 2);
+    std::vector<px::CameraPtr> cameras(nCams);
     std::list<sensor_msgs::ImuConstPtr> imuBuffer;
 
-    // for now, assume 2 stereo cameras are present
+    // for now, assume 4 cameras are present
     message_filters::TimeSynchronizer<sensor_msgs::Image,
                                       sensor_msgs::Image,
                                       sensor_msgs::Image,
@@ -229,7 +306,7 @@ main(int argc, char** argv)
 
     if (readIntermediateData)
     {
-        if (!cameraSystem->readPosesFromTextFile("int_camera_system_extrinsics.txt"))
+        if (!cameraSystem->readFromTextFile("int_camera_system_extrinsics.txt"))
         {
             ROS_ERROR("Failed to read intermediate camera extrinsic file.");
             return 1;
@@ -237,7 +314,7 @@ main(int argc, char** argv)
     }
     else
     {
-        ROS_INFO("Running stereo visual odometry...");
+        ROS_INFO("Running visual odometry...");
     }
 
     std::vector<ros::Publisher> imagePubs(camImageTopicNames.size());
@@ -270,8 +347,6 @@ main(int argc, char** argv)
                     {
                         cameras.at(i) = px::CameraFactory::instance()->generateCamera(cameraInfo);
 
-                        cameraSystem->setCamera(i, cameras.at(i));
-
                         if (!readIntermediateData)
                         {
                             cameraSystem->setGlobalCameraPose(i, cameraInfo->pose);
@@ -286,13 +361,28 @@ main(int argc, char** argv)
 
             if (init.count() == 4)
             {
-                for (int i = 0; i < nStereoCams; ++i)
+                size_t mark = 0;
+                for (size_t i = 0; i < cameraNs.size(); ++i)
                 {
-                    Eigen::Matrix4d H = px::invertHomogeneousTransform(cameraSystem->getGlobalCameraPose(i * 2)) *
-                                        cameraSystem->getGlobalCameraPose(i * 2 + 1);
+                    if (cameraNs.at(i).size() == 2)
+                    {
+                        Eigen::Matrix4d H = px::invertHomogeneousTransform(cameraSystem->getGlobalCameraPose(mark)) *
+                                            cameraSystem->getGlobalCameraPose(mark + 1);
 
-                    cameraSystem->setGlobalCameraPose(i * 2, Eigen::Matrix4d::Identity());
-                    cameraSystem->setGlobalCameraPose(i * 2 + 1, H);
+                        cameraSystem->setGlobalCameraPose(mark, Eigen::Matrix4d::Identity());
+                        cameraSystem->setGlobalCameraPose(mark + 1, H);
+
+                        cameraSystem->setCamera(mark, cameras.at(mark));
+                        cameraSystem->setCamera(mark + 1, cameras.at(mark + 1));
+                    }
+                    else
+                    {
+                        cameraSystem->setGlobalCameraPose(mark, Eigen::Matrix4d::Identity());
+
+                        cameraSystem->setCamera(mark, cameras.at(mark));
+                    }
+
+                    mark += cameraNs.at(i).size();
                 }
 
                 sc = boost::make_shared<px::SelfMultiCamCalibration>(boost::ref(nh),
@@ -361,17 +451,7 @@ main(int argc, char** argv)
     unsigned int calibDuration = static_cast<unsigned int>((ros::Time::now() - calibStartTime).toSec());
     ROS_INFO("Calibration took %u m %u s.", calibDuration / 60, calibDuration % 60);
 
-    if (!boost::filesystem::exists(outputDir))
-    {
-        boost::filesystem::create_directory(outputDir);
-    }
-
-    cameraSystem->writePosesToTextFile(outputDir + "/" + "camera_system_extrinsics.txt");
-    for (int i = 0; i < cameraSystem->cameraCount(); ++i)
-    {
-        cameraSystem->getCamera(i)->writeParametersToYamlFile(outputDir + "/" + cameraSystem->getCamera(i)->cameraName() + "_camera_calib.yaml");
-    }
-
+    cameraSystem->writeToDirectory(outputDir);
     ROS_INFO_STREAM("Wrote calibration files to "
                     << boost::filesystem::absolute(boost::filesystem::path(outputDir)).string());
 

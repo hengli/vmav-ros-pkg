@@ -42,22 +42,30 @@ SelfMultiCamCalibration::SelfMultiCamCalibration(ros::NodeHandle& nh,
  , m_sparseGraph(sparseGraph)
  , m_sgv(nh, sparseGraph)
 {
-    int nStereoCams = cameraSystem->cameraCount() / 2;
-
-    for (int i = 0; i < nStereoCams; ++i)
+    int i = 0;
+    while (i < cameraSystem->cameraCount())
     {
-        m_svo.push_back(boost::make_shared<StereoVO>(cameraSystem, i * 2, i * 2 + 1, false));
-    }
+        std::ostringstream oss;
 
-    for (int i = 0; i < nStereoCams; ++i)
-    {
+        if (cameraSystem->isPartOfStereoPair(i))
+        {
+            m_svo.push_back(boost::make_shared<StereoVO>(cameraSystem, i, i + 1, false));
+
+            i += 2;
+
+            oss << "stereo" << m_svo.size();
+        }
+        else
+        {
+            ++i;
+
+            oss << "mono" << i;
+        }
+
         m_subSparseGraphs.push_back(boost::make_shared<SparseGraph>());
 
-        std::ostringstream oss;
-        oss << "sub";
-        oss << i;
         m_subsgv.push_back(boost::make_shared<SparseGraphViz>(boost::ref(nh),
-                                                              m_subSparseGraphs.at(i),
+                                                              m_subSparseGraphs.back(),
                                                               oss.str()));
     }
 }
@@ -200,7 +208,7 @@ SelfMultiCamCalibration::run(const std::string& vocFilename,
 
         ROS_INFO("Writing intermediate data...");
         m_sparseGraph->writeToBinaryFile("int_map.sg");
-        m_cameraSystem->writePosesToTextFile("int_camera_system_extrinsics.txt");
+        m_cameraSystem->writeToTextFile("int_camera_system_extrinsics.txt");
         ROS_INFO("Done!");
     }
     else

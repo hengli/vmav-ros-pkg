@@ -19,12 +19,18 @@ include_directories(
 )
 
 add_library(hand_eye_calibration
+  src/ExtendedHandEyeCalibration.cpp
   src/HandEyeCalibration.cpp
 )
 
 target_link_libraries(hand_eye_calibration
   ${catkin_LIBRARIES}
 )
+
+catkin_add_gtest(ExtendedHandEyeCalibration-test test/ExtendedHandEyeCalibration_test.cpp)
+if(TARGET ExtendedHandEyeCalibration-test)
+  target_link_libraries(ExtendedHandEyeCalibration-test hand_eye_calibration)
+endif()
 
 catkin_add_gtest(HandEyeCalibration-test test/HandEyeCalibration_test.cpp)
 if(TARGET HandEyeCalibration-test)

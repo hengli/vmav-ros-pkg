@@ -154,10 +154,12 @@ main(int argc, char** argv)
     ROS_INFO("Received stereo camera information.");
     ROS_INFO("Camera 1:");
     ROS_INFO("   Camera name: %s", cameraInfo1->camera_name.c_str());
+    ROS_INFO("   Camera type: %s", cameraInfo1->camera_type.c_str());
     ROS_INFO("   Image width: %d", cameraInfo1->image_width);
     ROS_INFO("  Image height: %d", cameraInfo1->image_height);
     ROS_INFO("Camera 2:");
     ROS_INFO("   Camera name: %s", cameraInfo2->camera_name.c_str());
+    ROS_INFO("   Camera type: %s", cameraInfo2->camera_type.c_str());
     ROS_INFO("   Image width: %d", cameraInfo2->image_width);
     ROS_INFO("  Image height: %d", cameraInfo2->image_height);
 

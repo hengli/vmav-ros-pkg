@@ -27,11 +27,12 @@ EquidistantCamera::Parameters::Parameters()
 }
 
 EquidistantCamera::Parameters::Parameters(const std::string& cameraName,
+                                          const std::string& cameraType,
                                           int w, int h,
                                           double k2, double k3, double k4, double k5,
                                           double mu, double mv,
                                           double u0, double v0)
- : Camera::Parameters(KANNALA_BRANDT, cameraName, w, h)
+ : Camera::Parameters(KANNALA_BRANDT, cameraName, cameraType, w, h)
  , m_k2(k2)
  , m_k3(k3)
  , m_k4(k4)
@@ -163,6 +164,7 @@ EquidistantCamera::Parameters::readFromYamlFile(const std::string& filename)
 
     m_modelType = KANNALA_BRANDT;
     fs["camera_name"] >> m_cameraName;
+    fs["camera_type"] >> m_cameraType;
     m_imageWidth = static_cast<int>(fs["image_width"]);
     m_imageHeight = static_cast<int>(fs["image_height"]);
 
@@ -186,6 +188,7 @@ EquidistantCamera::Parameters::writeToYamlFile(const std::string& filename) cons
 
     fs << "model_type" << "KANNALA_BRANDT";
     fs << "camera_name" << m_cameraName;
+    fs << "camera_type" << m_cameraType;
     fs << "image_width" << m_imageWidth;
     fs << "image_height" << m_imageHeight;
 
@@ -210,6 +213,7 @@ EquidistantCamera::Parameters::operator=(const EquidistantCamera::Parameters& ot
     {
         m_modelType = other.m_modelType;
         m_cameraName = other.m_cameraName;
+        m_cameraType = other.m_cameraType;
         m_imageWidth = other.m_imageWidth;
         m_imageHeight = other.m_imageHeight;
         m_k2 = other.m_k2;
@@ -231,6 +235,7 @@ operator<< (std::ostream& out, const EquidistantCamera::Parameters& params)
     out << "Camera Parameters:" << std::endl;
     out << "    model_type " << "KANNALA_BRANDT" << std::endl;
     out << "   camera_name " << params.m_cameraName << std::endl;
+    out << "   camera_type " << params.m_cameraType << std::endl;
     out << "   image_width " << params.m_imageWidth << std::endl;
     out << "  image_height " << params.m_imageHeight << std::endl;
 
@@ -258,52 +263,65 @@ EquidistantCamera::EquidistantCamera()
 }
 
 EquidistantCamera::EquidistantCamera(const std::string& cameraName,
+                                     const std::string& cameraType,
                                      int imageWidth, int imageHeight,
                                      double k2, double k3, double k4, double k5,
                                      double mu, double mv,
                                      double u0, double v0)
- : mParameters(cameraName, imageWidth, imageHeight,
-               k2, k3, k4, k5, mu, mv, u0, v0)
+ : m_parameters(cameraName, cameraType, imageWidth, imageHeight,
+                k2, k3, k4, k5, mu, mv, u0, v0)
 {
     // Inverse camera projection matrix parameters
-    m_inv_K11 = 1.0 / mParameters.mu();
-    m_inv_K13 = -mParameters.u0() / mParameters.mu();
-    m_inv_K22 = 1.0 / mParameters.mv();
-    m_inv_K23 = -mParameters.v0() / mParameters.mv();
+    m_inv_K11 = 1.0 / m_parameters.mu();
+    m_inv_K13 = -m_parameters.u0() / m_parameters.mu();
+    m_inv_K22 = 1.0 / m_parameters.mv();
+    m_inv_K23 = -m_parameters.v0() / m_parameters.mv();
 }
 
 EquidistantCamera::EquidistantCamera(const EquidistantCamera::Parameters& params)
- : mParameters(params)
+ : m_parameters(params)
 {
     // Inverse camera projection matrix parameters
-    m_inv_K11 = 1.0 / mParameters.mu();
-    m_inv_K13 = -mParameters.u0() / mParameters.mu();
-    m_inv_K22 = 1.0 / mParameters.mv();
-    m_inv_K23 = -mParameters.v0() / mParameters.mv();
+    m_inv_K11 = 1.0 / m_parameters.mu();
+    m_inv_K13 = -m_parameters.u0() / m_parameters.mu();
+    m_inv_K22 = 1.0 / m_parameters.mv();
+    m_inv_K23 = -m_parameters.v0() / m_parameters.mv();
 }
 
 Camera::ModelType
 EquidistantCamera::modelType(void) const
 {
-    return mParameters.modelType();
+    return m_parameters.modelType();
 }
 
 const std::string&
 EquidistantCamera::cameraName(void) const
 {
-    return mParameters.cameraName();
+    return m_parameters.cameraName();
+}
+
+std::string&
+EquidistantCamera::cameraType(void)
+{
+    return m_parameters.cameraType();
+}
+
+const std::string&
+EquidistantCamera::cameraType(void) const
+{
+    return m_parameters.cameraType();
 }
 
 int
 EquidistantCamera::imageWidth(void) const
 {
-    return mParameters.imageWidth();
+    return m_parameters.imageWidth();
 }
 
 int
 EquidistantCamera::imageHeight(void) const
 {
-    return mParameters.imageHeight();
+    return m_parameters.imageHeight();
 }
 
 void
@@ -457,11 +475,11 @@ EquidistantCamera::spaceToPlane(const Eigen::Vector3d& P, Eigen::Vector2d& p) co
     double theta = acos(P(2) / P.norm());
     double phi = atan2(P(1), P(0));
 
-    Eigen::Vector2d p_u = r(mParameters.k2(), mParameters.k3(), mParameters.k4(), mParameters.k5(), theta) * Eigen::Vector2d(cos(phi), sin(phi));
+    Eigen::Vector2d p_u = r(m_parameters.k2(), m_parameters.k3(), m_parameters.k4(), m_parameters.k5(), theta) * Eigen::Vector2d(cos(phi), sin(phi));
 
     // Apply generalised projection matrix
-    p << mParameters.mu() * p_u(0) + mParameters.u0(),
-         mParameters.mv() * p_u(1) + mParameters.v0();
+    p << m_parameters.mu() * p_u(0) + m_parameters.u0(),
+         m_parameters.mv() * p_u(1) + m_parameters.v0();
 }
 
 
@@ -478,11 +496,11 @@ EquidistantCamera::spaceToPlane(const Eigen::Vector3d& P, Eigen::Vector2d& p,
     double theta = acos(P(2) / P.norm());
     double phi = atan2(P(1), P(0));
 
-    Eigen::Vector2d p_u = r(mParameters.k2(), mParameters.k3(), mParameters.k4(), mParameters.k5(), theta) * Eigen::Vector2d(cos(phi), sin(phi));
+    Eigen::Vector2d p_u = r(m_parameters.k2(), m_parameters.k3(), m_parameters.k4(), m_parameters.k5(), theta) * Eigen::Vector2d(cos(phi), sin(phi));
 
     // Apply generalised projection matrix
-    p << mParameters.mu() * p_u(0) + mParameters.u0(),
-         mParameters.mv() * p_u(1) + mParameters.v0();
+    p << m_parameters.mu() * p_u(0) + m_parameters.u0(),
+         m_parameters.mv() * p_u(1) + m_parameters.v0();
 }
 
 /** 
@@ -509,14 +527,14 @@ EquidistantCamera::undistToPlane(const Eigen::Vector2d& p_u, Eigen::Vector2d& p)
 //    }
 //
 //    // Apply generalised projection matrix
-//    p << mParameters.gamma1() * p_d(0) + mParameters.u0(),
-//         mParameters.gamma2() * p_d(1) + mParameters.v0();
+//    p << m_parameters.gamma1() * p_d(0) + m_parameters.u0(),
+//         m_parameters.gamma2() * p_d(1) + m_parameters.v0();
 }
 
 void
 EquidistantCamera::initUndistortMap(cv::Mat& map1, cv::Mat& map2) const
 {
-    cv::Size imageSize(mParameters.imageWidth(), mParameters.imageHeight());
+    cv::Size imageSize(m_parameters.imageWidth(), m_parameters.imageHeight());
 
     cv::Mat mapX = cv::Mat::zeros(imageSize, CV_32F);
     cv::Mat mapY = cv::Mat::zeros(imageSize, CV_32F);
@@ -554,7 +572,7 @@ EquidistantCamera::initUndistortRectifyMap(cv::Mat& map1, cv::Mat& map2,
 {
     if (imageSize == cv::Size(0, 0))
     {
-        imageSize = cv::Size(mParameters.imageWidth(), mParameters.imageHeight());
+        imageSize = cv::Size(m_parameters.imageWidth(), m_parameters.imageHeight());
     }
 
     cv::Mat mapX = cv::Mat::zeros(imageSize.height, imageSize.width, CV_32F);
@@ -577,8 +595,8 @@ EquidistantCamera::initUndistortRectifyMap(cv::Mat& map1, cv::Mat& map2,
 
     if (fx == -1.0f || fy == -1.0f)
     {
-        K_rect(0,0) = mParameters.mu();
-        K_rect(1,1) = mParameters.mv();
+        K_rect(0,0) = m_parameters.mu();
+        K_rect(1,1) = m_parameters.mv();
     }
 
     Eigen::Matrix3f K_rect_inv = K_rect.inverse();
@@ -614,19 +632,19 @@ EquidistantCamera::initUndistortRectifyMap(cv::Mat& map1, cv::Mat& map2,
 const EquidistantCamera::Parameters&
 EquidistantCamera::getParameters(void) const
 {
-    return mParameters;
+    return m_parameters;
 }
 
 void
 EquidistantCamera::setParameters(const EquidistantCamera::Parameters& parameters)
 {
-    mParameters = parameters;
+    m_parameters = parameters;
 
     // Inverse camera projection matrix parameters
-    m_inv_K11 = 1.0 / mParameters.mu();
-    m_inv_K13 = -mParameters.u0() / mParameters.mu();
-    m_inv_K22 = 1.0 / mParameters.mv();
-    m_inv_K23 = -mParameters.v0() / mParameters.mv();
+    m_inv_K11 = 1.0 / m_parameters.mu();
+    m_inv_K13 = -m_parameters.u0() / m_parameters.mu();
+    m_inv_K22 = 1.0 / m_parameters.mv();
+    m_inv_K23 = -m_parameters.v0() / m_parameters.mv();
 }
 
 void
@@ -655,20 +673,20 @@ void
 EquidistantCamera::writeParameters(std::vector<double>& parameterVec) const
 {
     parameterVec.resize(8);
-    parameterVec.at(0) = mParameters.k2();
-    parameterVec.at(1) = mParameters.k3();
-    parameterVec.at(2) = mParameters.k4();
-    parameterVec.at(3) = mParameters.k5();
-    parameterVec.at(4) = mParameters.mu();
-    parameterVec.at(5) = mParameters.mv();
-    parameterVec.at(6) = mParameters.u0();
-    parameterVec.at(7) = mParameters.v0();
+    parameterVec.at(0) = m_parameters.k2();
+    parameterVec.at(1) = m_parameters.k3();
+    parameterVec.at(2) = m_parameters.k4();
+    parameterVec.at(3) = m_parameters.k5();
+    parameterVec.at(4) = m_parameters.mu();
+    parameterVec.at(5) = m_parameters.mv();
+    parameterVec.at(6) = m_parameters.u0();
+    parameterVec.at(7) = m_parameters.v0();
 }
 
 void
 EquidistantCamera::writeParametersToYamlFile(const std::string& filename) const
 {
-    mParameters.writeToYamlFile(filename);
+    m_parameters.writeToYamlFile(filename);
 }
 
 void
@@ -685,6 +703,7 @@ EquidistantCamera::readParameters(const px_comm::CameraInfoConstPtr& cameraInfo)
 
     params.modelType() = KANNALA_BRANDT;
     params.cameraName() = cameraInfo->camera_name;
+    params.cameraType() = cameraInfo->camera_type;
     params.imageWidth() = cameraInfo->image_width;
     params.imageHeight() = cameraInfo->image_height;
 
@@ -704,29 +723,30 @@ void
 EquidistantCamera::writeParameters(px_comm::CameraInfoPtr& cameraInfo) const
 {
     cameraInfo->camera_model = "KANNALA_BRANDT";
-    cameraInfo->camera_name = mParameters.cameraName();
-    cameraInfo->image_width = mParameters.imageWidth();
-    cameraInfo->image_height = mParameters.imageHeight();
+    cameraInfo->camera_name = m_parameters.cameraName();
+    cameraInfo->camera_type = m_parameters.cameraType();
+    cameraInfo->image_width = m_parameters.imageWidth();
+    cameraInfo->image_height = m_parameters.imageHeight();
 
     cameraInfo->M.resize(0);
     cameraInfo->D.resize(0);
 
     cameraInfo->P.resize(8);
-    cameraInfo->P.at(0) = mParameters.k2();
-    cameraInfo->P.at(1) = mParameters.k3();
-    cameraInfo->P.at(2) = mParameters.k4();
-    cameraInfo->P.at(3) = mParameters.k5();
-    cameraInfo->P.at(4) = mParameters.mu();
-    cameraInfo->P.at(5) = mParameters.mv();
-    cameraInfo->P.at(6) = mParameters.u0();
-    cameraInfo->P.at(7) = mParameters.v0();
+    cameraInfo->P.at(0) = m_parameters.k2();
+    cameraInfo->P.at(1) = m_parameters.k3();
+    cameraInfo->P.at(2) = m_parameters.k4();
+    cameraInfo->P.at(3) = m_parameters.k5();
+    cameraInfo->P.at(4) = m_parameters.mu();
+    cameraInfo->P.at(5) = m_parameters.mv();
+    cameraInfo->P.at(6) = m_parameters.u0();
+    cameraInfo->P.at(7) = m_parameters.v0();
 }
 
 std::string
 EquidistantCamera::parametersToString(void) const
 {
     std::ostringstream oss;
-    oss << mParameters;
+    oss << m_parameters;
 
     return oss.str();
 }
@@ -871,19 +891,19 @@ EquidistantCamera::backprojectSymmetric(const Eigen::Vector2d& p_u,
     }
 
     int npow = 9;
-    if (mParameters.k5() == 0.0)
+    if (m_parameters.k5() == 0.0)
     {
         npow -= 2;
     }
-    if (mParameters.k4() == 0.0)
+    if (m_parameters.k4() == 0.0)
     {
         npow -= 2;
     }
-    if (mParameters.k3() == 0.0)
+    if (m_parameters.k3() == 0.0)
     {
         npow -= 2;
     }
-    if (mParameters.k2() == 0.0)
+    if (m_parameters.k2() == 0.0)
     {
         npow -= 2;
     }
@@ -895,19 +915,19 @@ EquidistantCamera::backprojectSymmetric(const Eigen::Vector2d& p_u,
 
     if (npow >= 3)
     {
-        coeffs(3) = mParameters.k2();
+        coeffs(3) = m_parameters.k2();
     }
     if (npow >= 5)
     {
-        coeffs(5) = mParameters.k3();
+        coeffs(5) = m_parameters.k3();
     }
     if (npow >= 7)
     {
-        coeffs(7) = mParameters.k4();
+        coeffs(7) = m_parameters.k4();
     }
     if (npow >= 9)
     {
-        coeffs(9) = mParameters.k5();
+        coeffs(9) = m_parameters.k5();
     }
 
     if (npow == 1)

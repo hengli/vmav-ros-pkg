@@ -23,6 +23,7 @@ public:
     public:
         Parameters();
         Parameters(const std::string& cameraName,
+                   const std::string& cameraType,
                    int w, int h,
                    double xi,
                    double k1, double k2, double p1, double p2,
@@ -72,6 +73,7 @@ public:
     * \brief Constructor from the projection model parameters
     */
     CataCamera(const std::string& cameraName,
+               const std::string& cameraType,
                int imageWidth, int imageHeight,
                double xi, double k1, double k2, double p1, double p2,
                double gamma1, double gamma2, double u0, double v0);
@@ -82,6 +84,8 @@ public:
 
     Camera::ModelType modelType(void) const;
     const std::string& cameraName(void) const;
+    std::string& cameraType(void);
+    const std::string& cameraType(void) const;
     int imageWidth(void) const;
     int imageHeight(void) const;
 
@@ -145,7 +149,7 @@ public:
     std::string parametersToString(void) const;
 
 private:
-    Parameters mParameters;
+    Parameters m_parameters;
 
     double m_inv_K11, m_inv_K13, m_inv_K22, m_inv_K23;
     bool m_noDistortion;

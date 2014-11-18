@@ -29,7 +29,8 @@ StereoCameraCalibration::StereoCameraCalibration(Camera::ModelType modelType,
  , m_calibRight(modelType, cameraRightName, imageSize, boardSize, squareSize)
  , m_verbose(false)
 {
-
+    m_calibLeft.camera()->cameraType() = "stereo";
+    m_calibRight.camera()->cameraType() = "stereo";
 }
 
 void
@@ -463,7 +464,7 @@ StereoCameraCalibration::writeExtrinsicParameters(const std::string& filename) c
 
     cs.setGlobalCameraPose(1, invertHomogeneousTransform(pose));
 
-    cs.writePosesToTextFile(filename);
+    cs.writeToTextFile(filename);
 }
 
 bool
@@ -546,7 +547,7 @@ StereoCameraCalibration::readChessboardData(const std::string& filenameIntL,
     }
 
     CameraSystem cameraSystem(2);
-    if (!cameraSystem.readPosesFromTextFile(filenameExt))
+    if (!cameraSystem.readFromTextFile(filenameExt))
     {
         return false;
     }

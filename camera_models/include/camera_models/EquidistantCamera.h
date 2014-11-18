@@ -23,6 +23,7 @@ public:
     public:
         Parameters();
         Parameters(const std::string& cameraName,
+                   const std::string& cameraType,
                    int w, int h,
                    double k2, double k3, double k4, double k5,
                    double mu, double mv,
@@ -71,6 +72,7 @@ public:
     * \brief Constructor from the projection model parameters
     */
     EquidistantCamera(const std::string& cameraName,
+                      const std::string& cameraType,
                       int imageWidth, int imageHeight,
                       double k2, double k3, double k4, double k5,
                       double mu, double mv,
@@ -82,6 +84,8 @@ public:
 
     Camera::ModelType modelType(void) const;
     const std::string& cameraName(void) const;
+    std::string& cameraType(void);
+    const std::string& cameraType(void) const;
     int imageWidth(void) const;
     int imageHeight(void) const;
 
@@ -157,7 +161,7 @@ private:
     void backprojectSymmetric(const Eigen::Vector2d& p_u,
                               double& theta, double& phi) const;
 
-    Parameters mParameters;
+    Parameters m_parameters;
 
     double m_inv_K11, m_inv_K13, m_inv_K22, m_inv_K23;
 };

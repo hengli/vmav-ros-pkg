@@ -32,6 +32,7 @@ CameraFactory::instance(void)
 CameraPtr
 CameraFactory::generateCamera(Camera::ModelType modelType,
                               const std::string& cameraName,
+                              const std::string& cameraType,
                               cv::Size imageSize) const
 {
     switch (modelType)
@@ -42,6 +43,7 @@ CameraFactory::generateCamera(Camera::ModelType modelType,
 
         EquidistantCamera::Parameters params = camera->getParameters();
         params.cameraName() = cameraName;
+        params.cameraType() = cameraType;
         params.imageWidth() = imageSize.width;
         params.imageHeight() = imageSize.height;
         camera->setParameters(params);
@@ -53,6 +55,7 @@ CameraFactory::generateCamera(Camera::ModelType modelType,
 
         PinholeCamera::Parameters params = camera->getParameters();
         params.cameraName() = cameraName;
+        params.cameraType() = cameraType;
         params.imageWidth() = imageSize.width;
         params.imageHeight() = imageSize.height;
         camera->setParameters(params);
@@ -65,6 +68,7 @@ CameraFactory::generateCamera(Camera::ModelType modelType,
 
         CataCamera::Parameters params = camera->getParameters();
         params.cameraName() = cameraName;
+        params.cameraType() = cameraType;
         params.imageWidth() = imageSize.width;
         params.imageHeight() = imageSize.height;
         camera->setParameters(params);

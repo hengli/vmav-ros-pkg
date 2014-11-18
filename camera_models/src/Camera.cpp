@@ -26,9 +26,11 @@ Camera::Parameters::Parameters(ModelType modelType)
 
 Camera::Parameters::Parameters(ModelType modelType,
                                const std::string& cameraName,
+                               const std::string& cameraType,
                                int w, int h)
  : m_modelType(modelType)
  , m_cameraName(cameraName)
+ , m_cameraType(cameraType)
  , m_imageWidth(w)
  , m_imageHeight(h)
 {
@@ -58,6 +60,12 @@ Camera::Parameters::cameraName(void)
     return m_cameraName;
 }
 
+std::string&
+Camera::Parameters::cameraType(void)
+{
+    return m_cameraType;
+}
+
 int&
 Camera::Parameters::imageWidth(void)
 {
@@ -80,6 +88,12 @@ const std::string&
 Camera::Parameters::cameraName(void) const
 {
     return m_cameraName;
+}
+
+const std::string&
+Camera::Parameters::cameraType(void) const
+{
+    return m_cameraType;
 }
 
 int

@@ -31,7 +31,7 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "visualize_camera_system");
 
     px::CameraSystem cameraSystem(4);
-    if (!cameraSystem.readPosesFromTextFile(inputFilename))
+    if (!cameraSystem.readFromTextFile(inputFilename))
     {
         ROS_ERROR("Failed to read extrinsic file.");
         return 1;

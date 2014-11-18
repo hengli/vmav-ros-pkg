@@ -83,6 +83,14 @@ public:
 
     }
 
+    ReprojectionError2(const Eigen::Vector3d& observed_ray)
+     : m_q_sys_cam(Eigen::Quaterniond::Identity())
+     , m_t_sys_cam(Eigen::Vector3d::Zero())
+     , m_observed_ray(observed_ray)
+    {
+
+    }
+
     template <typename T>
     bool operator()(const T* const q_sys,
                     const T* const t_sys,
@@ -485,6 +493,18 @@ CostFunctionFactory::generateCostFunction(const Eigen::Quaterniond& q_sys_cam,
     costFunction =
         new ceres::AutoDiffCostFunction<ReprojectionError2, 1, 4, 3, 3>(
             new ReprojectionError2(q_sys_cam, t_sys_cam, observed_ray));
+
+    return costFunction;
+}
+
+ceres::CostFunction*
+CostFunctionFactory::generateCostFunction(const Eigen::Vector3d& observed_ray) const
+{
+    ceres::CostFunction* costFunction = 0;
+
+    costFunction =
+        new ceres::AutoDiffCostFunction<ReprojectionError2, 1, 4, 3, 3>(
+            new ReprojectionError2(observed_ray));
 
     return costFunction;
 }

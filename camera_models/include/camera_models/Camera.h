@@ -25,16 +25,20 @@ public:
     public:
         Parameters(ModelType modelType);
 
-        Parameters(ModelType modelType, const std::string& cameraName,
+        Parameters(ModelType modelType,
+                   const std::string& cameraName,
+                   const std::string& cameraType,
                    int w, int h);
 
         ModelType& modelType(void);
         std::string& cameraName(void);
+        std::string& cameraType(void);
         int& imageWidth(void);
         int& imageHeight(void);
 
         ModelType modelType(void) const;
         const std::string& cameraName(void) const;
+        const std::string& cameraType(void) const;
         int imageWidth(void) const;
         int imageHeight(void) const;
 
@@ -47,6 +51,7 @@ public:
         ModelType m_modelType;
         int m_nIntrinsics;
         std::string m_cameraName;
+        std::string m_cameraType;
         int m_imageWidth;
         int m_imageHeight;
     };
@@ -58,6 +63,10 @@ public:
 
     virtual ModelType modelType(void) const = 0;
     virtual const std::string& cameraName(void) const = 0;
+
+    virtual std::string& cameraType(void) = 0;
+    virtual const std::string& cameraType(void) const = 0;
+
     virtual int imageWidth(void) const = 0;
     virtual int imageHeight(void) const = 0;
 

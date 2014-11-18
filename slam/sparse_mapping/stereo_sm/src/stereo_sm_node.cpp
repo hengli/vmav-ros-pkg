@@ -84,7 +84,7 @@ main(int argc, char** argv)
 
     // get extrinsics
     px::CameraSystemPtr cameraSystem = boost::make_shared<px::CameraSystem>(2);
-    if (!cameraSystem->readPosesFromTextFile(extrinsicFilename))
+    if (!cameraSystem->readFromTextFile(extrinsicFilename))
     {
         ROS_ERROR("Failed to read extrinsic file %s.", extrinsicFilename.c_str());
         return 1;

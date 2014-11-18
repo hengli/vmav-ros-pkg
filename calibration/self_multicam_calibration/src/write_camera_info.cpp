@@ -8,14 +8,12 @@
 
 int main(int argc, char** argv)
 {
-    int count;
     std::string calibDir;
     std::string cameraSystemNs;
 
     boost::program_options::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
-        ("count", boost::program_options::value<int>(&count)->default_value(4), "Number of cameras in camera system.")
         ("calib", boost::program_options::value<std::string>(&calibDir)->default_value("calib"), "Directory containing calibration files.")
         ("ns", boost::program_options::value<std::string>(&cameraSystemNs)->default_value("/delta/vrmagic"), "Namespace of camera system.")
         ;
@@ -34,31 +32,15 @@ int main(int argc, char** argv)
 
     ros::NodeHandle nh;
 
-    std::vector<std::string> camNames;
-    px::CameraSystem cameraSystem(count);
-    if (!cameraSystem.readPosesFromTextFile(calibDir + "/camera_system_extrinsics.txt", camNames))
+    px::CameraSystem cameraSystem;
+    if (!cameraSystem.readFromDirectory(calibDir))
     {
-        ROS_ERROR_STREAM("Failed to read poses from " << calibDir + "/camera_system_extrinsics.txt.");
+        ROS_ERROR_STREAM("Failed to read calibration data from " << calibDir);
         return 1;
     }
 
-    for (size_t i = 0; i < camNames.size(); ++i)
-    {
-        std::string calibFilename = calibDir + "/" + camNames.at(i) + "_camera_calib.yaml";
-
-        px::CameraPtr camera = px::CameraFactory::instance()->generateCameraFromYamlFile(calibFilename);
-        if (!camera)
-        {
-            ROS_ERROR("Failed to read calibration data for camera %s from %s.",
-                      camNames.at(i).c_str(), calibFilename.c_str());
-            return 1;
-        }
-
-        cameraSystem.setCamera(i, camera);
-    }
-
     std::vector<std::string> camNs;
-    for (size_t i = 0; i < camNames.size(); ++i)
+    for (size_t i = 0; i < cameraSystem.cameraCount(); ++i)
     {
         std::ostringstream oss;
         oss << "cam" << i;

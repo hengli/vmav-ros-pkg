@@ -37,7 +37,7 @@ CameraCalibration::CameraCalibration(const Camera::ModelType modelType,
  , m_squareSize(squareSize)
  , m_verbose(false)
 {
-    m_camera = CameraFactory::instance()->generateCamera(modelType, cameraName, imageSize);
+    m_camera = CameraFactory::instance()->generateCamera(modelType, cameraName, "mono", imageSize);
 }
 
 void

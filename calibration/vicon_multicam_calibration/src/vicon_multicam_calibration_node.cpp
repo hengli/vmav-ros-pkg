@@ -513,17 +513,8 @@ main(int argc, char** argv)
 
     calibration.calibrate(H_cb_cbv);
 
-    if (!boost::filesystem::exists(outputDir))
-    {
-        boost::filesystem::create_directory(outputDir);
-    }
-
     px::CameraSystemConstPtr cameraSystem = calibration.getCameraSystem();
-    cameraSystem->writePosesToTextFile(outputDir + "/" + "camera_system_extrinsics.txt");
-    for (int i = 0; i < cameraSystem->cameraCount(); ++i)
-    {
-        cameraSystem->getCamera(i)->writeParametersToYamlFile(outputDir + "/" + cameraSystem->getCamera(i)->cameraName() + "_camera_calib.yaml");
-    }
+    cameraSystem->writeToDirectory(outputDir);
 
     ROS_INFO_STREAM("Wrote calibration files to "
                     << boost::filesystem::absolute(boost::filesystem::path(outputDir)).string());

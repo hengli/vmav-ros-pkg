@@ -41,6 +41,8 @@ public:
                                               const Eigen::Vector3d& t_sys_cam,
                                               const Eigen::Vector3d& observed_ray) const;
 
+    ceres::CostFunction* generateCostFunction(const Eigen::Vector3d& observed_ray) const;
+
     ceres::CostFunction* generateCostFunction(const Eigen::Matrix4d& H,
                                               const Eigen::Vector3d& observed_ray) const;
 

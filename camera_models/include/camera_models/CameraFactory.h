@@ -19,6 +19,7 @@ public:
 
     CameraPtr generateCamera(Camera::ModelType modelType,
                              const std::string& cameraName,
+                             const std::string& cameraType,
                              cv::Size imageSize) const;
     CameraPtr generateCamera(const px_comm::CameraInfoConstPtr& cameraInfo) const;
 
