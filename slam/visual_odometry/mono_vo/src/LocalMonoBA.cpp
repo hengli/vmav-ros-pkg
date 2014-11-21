@@ -59,14 +59,14 @@ LocalMonoBA::optimize(void)
 
         for (size_t i = 0; i < features.size(); ++i)
         {
-            Point2DFeaturePtr& feature = features.at(i);
+            Point3DFeaturePtr& scenePoint = features.at(i)->feature3D();
 
-            if (feature->prevMatches().empty() && feature->nextMatches().empty())
+            if (!scenePoint)
             {
                 continue;
             }
 
-            scenePoints.insert(feature->feature3D().get());
+            scenePoints.insert(scenePoint.get());
         }
     }
 

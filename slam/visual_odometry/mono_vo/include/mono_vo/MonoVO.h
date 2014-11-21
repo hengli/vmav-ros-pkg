@@ -65,6 +65,12 @@ private:
         const cv::Mat& undistortMapY;
     };
 
+    void removeSingletonFeatures(FrameSetPtr& frameSet) const;
+
+    void removeCorrespondence(Point2DFeature* featurePrev,
+                              Point2DFeature* featureCurr,
+                              bool removeScenePointFor2CorrespondenceCase) const;
+
     void getDescriptorMat(const FrameConstPtr& frame, cv::Mat& dmat) const;
     void getDescriptorMatVec(const FrameSetConstPtr& frameSet,
                              std::vector<cv::Mat>& dmatVec) const;
@@ -98,16 +104,15 @@ private:
                            const FrameConstPtr& frame2,
                            const std::vector<cv::DMatch>& matches,
                            Eigen::Matrix4d& relativeMotion,
-                           std::vector<cv::DMatch>& inliers) const;
+                           std::vector<bool>& inliers) const;
 
     void solveP3PRansac(const FrameConstPtr& frame1,
                         const FrameConstPtr& frame2,
                         const std::vector<cv::DMatch>& matches,
                         Eigen::Matrix4d& cameraPose,
-                        std::vector<cv::DMatch>& inliers) const;
+                        std::vector<bool>& inliers) const;
 
-    void visualizeCorrespondences(const FrameSetConstPtr& frameSetPrev,
-                                  const FrameSetConstPtr& frameSetCurr) const;
+    void visualizeCorrespondences(const FrameSetConstPtr& frameSet) const;
 
     const double k_epipolarThresh;
     const float k_imageMotionThresh;

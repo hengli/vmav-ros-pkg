@@ -76,7 +76,7 @@ SparseGraphViz::visualizeMap(int windowSize)
     {
         FrameSet* frameSet = itFrameSet->get();
 
-        for (size_t i = 0; i < frameSet->frames().size(); i += 2)
+        for (size_t i = 0; i < frameSet->frames().size(); ++i)
         {
             const std::vector<Point2DFeaturePtr>& features = frameSet->frames().at(i)->features2D();
 
@@ -84,6 +84,11 @@ SparseGraphViz::visualizeMap(int windowSize)
             {
                 const Point2DFeatureConstPtr& feature = features.at(j);
                 const Point3DFeatureConstPtr& scenePoint = feature->feature3D();
+
+                if (!scenePoint)
+                {
+                    continue;
+                }
 
                 if (scenePoint->features2D().size() <= 2)
                 {

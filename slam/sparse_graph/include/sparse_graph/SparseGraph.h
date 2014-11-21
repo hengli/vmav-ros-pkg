@@ -2,7 +2,6 @@
 #define SPARSEGRAPH_H
 
 #include <boost/unordered_map.hpp>
-#include <boost/weak_ptr.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <sensor_msgs/Imu.h>
@@ -220,6 +219,7 @@ class FrameSet
 {
 public:
     FrameSet();
+    ~FrameSet();
 
     size_t& seq(void);
     size_t seq(void) const;

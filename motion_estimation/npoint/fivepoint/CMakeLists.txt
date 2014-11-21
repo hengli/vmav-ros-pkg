@@ -3,6 +3,7 @@ project(fivepoint)
 
 find_package(catkin REQUIRED)
 
+find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 
 catkin_package(
@@ -11,7 +12,11 @@ catkin_package(
   DEPENDS opencv
 )
 
-include_directories(include)
+include_directories(
+  ${OpenCV_INCLUDE_DIR}
+  ${EIGEN3_INCLUDE_DIR}
+  include
+)
 
 add_library(fivepoint
   src/fivepoint.cpp

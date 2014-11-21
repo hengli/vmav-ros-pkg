@@ -85,6 +85,7 @@ LoopClosureEdge::measurement(void) const
 
 Frame::Frame()
  : m_cameraId(-1)
+ , m_frameSet(0)
 {
 
 }
@@ -162,10 +163,12 @@ Frame::image(void) const
 }
 
 Point2DFeature::Point2DFeature()
- : m_index(0)
+ : m_ray(Eigen::Vector3d::Zero())
+ , m_index(0)
  , m_bestPrevMatchId(-1)
  , m_bestMatchId(-1)
  , m_bestNextMatchId(-1)
+ , m_frame(0)
 {
 
 }
@@ -356,6 +359,7 @@ Point3DFeature::Point3DFeature(void)
 {
     m_point.setZero();
     m_pointCovariance.setZero();
+    m_pointFromStereo.setZero();
 }
 
 Eigen::Vector3d&
@@ -456,10 +460,50 @@ Point3DFeature::features2D(void) const
 
 FrameSet::FrameSet()
  : m_seq(0)
- , m_prevFrameSet(0)
- , m_nextFrameSet(0)
 {
 
+}
+
+FrameSet::~FrameSet()
+{
+    for (size_t i = 0; i < m_frames.size(); ++i)
+    {
+        Frame* frame = m_frames.at(i).get();
+        std::vector<Point2DFeaturePtr>& features = frame->features2D();
+
+        for (size_t j = 0; j < features.size(); ++j)
+        {
+            Point2DFeaturePtr& feature = features.at(j);
+            Point3DFeaturePtr& scenePoint = feature->feature3D();
+
+            if (!scenePoint)
+            {
+                continue;
+            }
+
+            if (!feature->nextMatches().empty())
+            {
+                Point2DFeature* featureNext = feature->nextMatch();
+                featureNext->prevMatches().clear();
+                featureNext->bestPrevMatchId() = -1;
+            }
+
+            std::vector<Point2DFeature*>::iterator it = scenePoint->features2D().begin();
+            while (it != scenePoint->features2D().end())
+            {
+                Frame* fr = (*it)->frame();
+
+                if (fr == frame)
+                {
+                    it = scenePoint->features2D().erase(it);
+                }
+                else
+                {
+                    ++it;
+                }
+            }
+        }
+    }
 }
 
 size_t&
@@ -638,7 +682,7 @@ SparseGraph::scenePointCount(void) const
             {
                 const FramePtr& frame = frameSet->frames().at(k);
 
-                if (frame.get() == 0)
+                if (!frame)
                 {
                     continue;
                 }
@@ -647,7 +691,7 @@ SparseGraph::scenePointCount(void) const
 
                 for (size_t l = 0; l < features2D.size(); ++l)
                 {
-                    if (features2D.at(l)->feature3D().get() == 0)
+                    if (!features2D.at(l)->feature3D())
                     {
                         continue;
                     }
@@ -1125,21 +1169,21 @@ SparseGraph::writeToBinaryFile(const std::string& filename) const
             const FrameSetPtr& frameSet = segment.at(frameSetId);
 
             // index all structures
-            if (frameSet->systemPose().get() != 0)
+            if (frameSet->systemPose())
             {
                 if (poseMap.find(frameSet->systemPose().get()) == poseMap.end())
                 {
                     poseMap.insert(std::make_pair(frameSet->systemPose().get(), poseMap.size()));
                 }
             }
-            if (frameSet->imuMeasurement().get() != 0)
+            if (frameSet->imuMeasurement())
             {
                 if (imuMap.find(frameSet->imuMeasurement().get()) == imuMap.end())
                 {
                     imuMap.insert(std::make_pair(frameSet->imuMeasurement().get(), imuMap.size()));
                 }
             }
-            if (frameSet->groundTruthMeasurement().get() != 0)
+            if (frameSet->groundTruthMeasurement())
             {
                 if (poseMap.find(frameSet->groundTruthMeasurement().get()) == poseMap.end())
                 {
@@ -1151,14 +1195,14 @@ SparseGraph::writeToBinaryFile(const std::string& filename) const
             {
                 const FramePtr& frame = frameSet->frames().at(frameId);
 
-                if (frame.get() == 0)
+                if (!frame)
                 {
                     continue;
                 }
 
                 frameMap.insert(std::make_pair(frame.get(), frameMap.size()));
 
-                if (frame->cameraPose().get() != 0)
+                if (frame->cameraPose())
                 {
                     if (poseMap.find(frame->cameraPose().get()) == poseMap.end())
                     {
@@ -1170,7 +1214,7 @@ SparseGraph::writeToBinaryFile(const std::string& filename) const
                 for (size_t i = 0; i < features2D.size(); ++i)
                 {
                     const Point2DFeaturePtr& feature2D = features2D.at(i);
-                    if (feature2D.get() == 0)
+                    if (!feature2D)
                     {
                         std::cout << "# WARNING: Frame::features2D: Empty Point2DFeaturePtr instance." << std::endl;
                         continue;
@@ -1182,7 +1226,7 @@ SparseGraph::writeToBinaryFile(const std::string& filename) const
                     }
 
                     const Point3DFeaturePtr& feature3D = feature2D->feature3D();
-                    if (feature3D.get() != 0)
+                    if (feature3D)
                     {
                         if (feature3DMap.find(feature3D.get()) == feature3DMap.end())
                         {
@@ -1235,7 +1279,7 @@ SparseGraph::writeToBinaryFile(const std::string& filename) const
         writeData(ofs, frame->cameraId());
 
         // references
-        if (frame->cameraPose().get() != 0)
+        if (frame->cameraPose())
         {
             writeData(ofs, poseMap[frame->cameraPose().get()]);
         }
@@ -1452,7 +1496,7 @@ SparseGraph::writeToBinaryFile(const std::string& filename) const
             }
         }
 
-        if (feature2D->feature3D().get() != 0)
+        if (feature2D->feature3D())
         {
             boost::unordered_map<Point3DFeature*,size_t>::iterator itF3D = feature3DMap.find(feature2D->feature3D().get());
             if (itF3D != feature3DMap.end())
@@ -1541,7 +1585,7 @@ SparseGraph::writeToBinaryFile(const std::string& filename) const
 
             for (size_t frameId = 0; frameId < frameSet->frames().size(); ++frameId)
             {
-                if (frameSet->frames().at(frameId).get() != 0)
+                if (frameSet->frames().at(frameId))
                 {
                     writeData(ofs, frameMap[frameSet->frames().at(frameId).get()]);
                 }
@@ -1552,7 +1596,7 @@ SparseGraph::writeToBinaryFile(const std::string& filename) const
                 }
             }
 
-            if (frameSet->systemPose().get() != 0)
+            if (frameSet->systemPose())
             {
                 writeData(ofs, poseMap[frameSet->systemPose().get()]);
             }
@@ -1562,7 +1606,7 @@ SparseGraph::writeToBinaryFile(const std::string& filename) const
                 writeData(ofs, invalidId);
             }
 
-            if (frameSet->imuMeasurement().get() != 0)
+            if (frameSet->imuMeasurement())
             {
                 writeData(ofs, imuMap[frameSet->imuMeasurement().get()]);
             }
@@ -1572,7 +1616,7 @@ SparseGraph::writeToBinaryFile(const std::string& filename) const
                 writeData(ofs, invalidId);
             }
 
-            if (frameSet->groundTruthMeasurement().get() != 0)
+            if (frameSet->groundTruthMeasurement())
             {
                 writeData(ofs, poseMap[frameSet->groundTruthMeasurement().get()]);
             }
