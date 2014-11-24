@@ -5,6 +5,8 @@
 #include <Eigen/Dense>
 #include <stdint.h>
 
+#include "cauldron/Enums.h"
+
 namespace px
 {
 
@@ -13,8 +15,8 @@ class Transform
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    Transform();
-    Transform(const Eigen::Matrix4d& H);
+    Transform(TransformType type = TRANSFORM_SE3);
+    Transform(const Eigen::Matrix4d& H, TransformType type = TRANSFORM_SE3);
 
     void setIdentity(void);
 
@@ -28,11 +30,18 @@ public:
     double* translationData(void);
     const double* const translationData(void) const;
 
+    double& scale(void);
+    double scale(void) const;
+    double* scaleData(void);
+    const double* const scaleData(void) const;
+
     Eigen::Matrix4d toMatrix(void) const;
 
 private:
+    TransformType m_type;
     Eigen::Quaterniond m_q;
     Eigen::Vector3d m_t;
+    double m_s;
 };
 
 }

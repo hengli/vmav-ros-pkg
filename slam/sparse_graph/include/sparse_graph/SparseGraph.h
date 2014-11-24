@@ -177,7 +177,9 @@ public:
     enum
     {
         OBSERVED_BY_CAMERA_MULTIPLE_TIMES = 0x1,
-        OBSERVED_BY_MULTIPLE_CAMERAS = 0x2
+        OBSERVED_BY_MULTIPLE_CAMERAS = 0x2,
+        OBSERVED_IN_CURRENT_FRAME = 0x4,
+        TRIANGULATED_IN_CURRENT_FRAME = 0x8
     };
 
     Point3DFeature();

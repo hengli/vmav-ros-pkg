@@ -3,16 +3,23 @@
 namespace px
 {
 
-Transform::Transform()
+Transform::Transform(TransformType type)
+ : m_type(type)
+ , m_q(Eigen::Quaterniond::Identity())
+ , m_t(Eigen::Vector3d::Zero())
+ , m_s(1.0)
 {
-    m_q.setIdentity();
-    m_t.setZero();
+
 }
 
-Transform::Transform(const Eigen::Matrix4d& H)
+Transform::Transform(const Eigen::Matrix4d& H,
+                     TransformType type)
+ : m_type(type)
+ , m_q(H.block<3,3>(0,0))
+ , m_t(H.block<3,1>(0,3))
+ , m_s(1.0)
 {
-    m_q = Eigen::Quaterniond(H.block<3,3>(0,0));
-    m_t = H.block<3,1>(0,3);
+
 }
 
 void
@@ -70,6 +77,30 @@ Transform::translationData(void) const
     return m_t.data();
 }
 
+double&
+Transform::scale(void)
+{
+    return m_s;
+}
+
+double
+Transform::scale(void) const
+{
+    return m_s;
+}
+
+double*
+Transform::scaleData(void)
+{
+    return &m_s;
+}
+
+const double* const
+Transform::scaleData(void) const
+{
+    return &m_s;
+}
+
 Eigen::Matrix4d
 Transform::toMatrix(void) const
 {
@@ -77,6 +108,11 @@ Transform::toMatrix(void) const
     H.setIdentity();
     H.block<3,3>(0,0) = m_q.toRotationMatrix();
     H.block<3,1>(0,3) = m_t;
+
+    if (m_type == TRANSFORM_SIM3)
+    {
+        H.block<3,3>(0,0) *= m_s;
+    }
 
     return H;
 }

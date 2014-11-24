@@ -16,7 +16,7 @@ namespace px
 MonoVO::MonoVO(const CameraSystemConstPtr& cameraSystem,
                int cameraId, bool preUndistort)
  : k_epipolarThresh(0.00005)
- , k_imageMotionThresh(5.0f)
+ , k_maxDelta(50.0f)
  , k_maxDistanceRatio(0.7f)
  , k_maxStereoRange(100.0)
  , k_nominalFocalLength(300.0)
@@ -141,7 +141,7 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
                 if (!feature->prevMatches().empty())
                 {
                     Point2DFeature* featurePrev = feature->prevMatch();
-                    removeCorrespondence(featurePrev, feature, false);
+                    removeCorrespondence(featurePrev, feature);
                 }
             }
         }
@@ -187,40 +187,9 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
             cameraPose = relativeMotion *
                          invertHomogeneousTransform(m_cameraSystem->getGlobalCameraPose(m_cameraId));
 
-            float dp = 0.0f;
-            int count = 0;
-            for (size_t i = 0; i < matches.size(); ++i)
-            {
-                if (!inlierMatches.at(i))
-                {
-                    continue;
-                }
-
-                const cv::DMatch& match = matches.at(i);
-
-                Point2DFeaturePtr& featurePrev = featuresPrev.at(match.queryIdx);
-                Point2DFeaturePtr& featureCurr = featuresCurr.at(match.trainIdx);
-
-                dp += cv::norm(featureCurr->keypoint().pt - featurePrev->keypoint().pt);
-                ++count;
-            }
-            dp /= count;
-
-            if (dp > k_imageMotionThresh)
-            {
-                m_init = true;
-
-                ROS_INFO("Initialized keyframes.");
-            }
-            else
-            {
-                return true;
-            }
-
             // For each match, reconstruct the scene point.
             // If the reprojection error of the scene point in either camera exceeds
             // a threshold, remove the corresponding match.
-            m_n2D3DCorrespondences = 0;
             for (size_t i = 0; i < matches.size(); ++i)
             {
                 if (!inlierMatches.at(i))
@@ -233,13 +202,18 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
                 Point2DFeaturePtr& featurePrev = featuresPrev.at(match.queryIdx);
                 Point2DFeaturePtr& featureCurr = featuresCurr.at(match.trainIdx);
 
-                if (reconstructScenePoint(featurePrev, featureCurr, relativeMotion))
-                {
-                    ++m_n2D3DCorrespondences;
-                }
-                else
+                if (!reconstructScenePoint(featurePrev, featureCurr, relativeMotion))
                 {
                     inlierMatches.at(i) = false;
+                }
+            }
+
+            m_n2D3DCorrespondences = 0;
+            for (size_t i = 0; i < inlierMatches.size(); ++i)
+            {
+                if (inlierMatches.at(i))
+                {
+                    ++m_n2D3DCorrespondences;
                 }
             }
         }
@@ -272,6 +246,15 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
             solveP3PRansac(m_frameSetPrev->frames().at(0), frameSet->frames().at(0),
                            matches3D2D, cameraPose, inlierMatches3D2D);
 
+            m_n2D3DCorrespondences = 0;
+            for (size_t i = 0; i < inlierMatches3D2D.size(); ++i)
+            {
+                if (inlierMatches3D2D.at(i))
+                {
+                    ++m_n2D3DCorrespondences;
+                }
+            }
+
             inlierMatches = std::vector<bool>(matches.size(), false);
             int nInlierMatches3D2D = 0;
             for (size_t i = 0; i < matches3D2D.size(); ++i)
@@ -297,7 +280,6 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
 
             int nCorrespondences2D2D = 0;
             int nTriCorrespondences2D2D = 0;
-            m_n2D3DCorrespondences = 0;
             for (size_t i = 0; i < matches.size(); ++i)
             {
                 const cv::DMatch& match = matches.at(i);
@@ -305,7 +287,16 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
                 Point2DFeaturePtr& featurePrev = featuresPrev.at(match.queryIdx);
                 Point2DFeaturePtr& featureCurr = featuresCurr.at(match.trainIdx);
 
-                if (!inlierMatches.at(i))
+                if (inlierMatches.at(i))
+                {
+                    Point3DFeaturePtr& scenePoint = featurePrev->feature3D();
+
+                    featureCurr->feature3D() = scenePoint;
+                    scenePoint->features2D().push_back(featureCurr.get());
+
+                    scenePoint->attributes() = Point3DFeature::OBSERVED_IN_CURRENT_FRAME;
+                }
+                else
                 {
                     if (!featurePrev->feature3D())
                     {
@@ -319,16 +310,7 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
                         }
                         ++nCorrespondences2D2D;
                     }
-
-                    continue;
                 }
-
-                Point3DFeaturePtr& scenePoint = featurePrev->feature3D();
-
-                featureCurr->feature3D() = scenePoint;
-                scenePoint->features2D().push_back(featureCurr.get());
-
-                ++m_n2D3DCorrespondences;
             }
 
             if (m_debug)
@@ -337,6 +319,15 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
                          nTriCorrespondences2D2D, nCorrespondences2D2D);
             }
         }
+
+//        m_n2D3DCorrespondences = 0;
+//        for (size_t i = 0; i < inlierMatches.size(); ++i)
+//        {
+//            if (inlierMatches.at(i))
+//            {
+//                ++m_n2D3DCorrespondences;
+//            }
+//        }
 
         if (m_n2D3DCorrespondences < 10)
         {
@@ -394,8 +385,6 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
                      avgError, maxError, featureCount);
         }
 
-        removeSingletonFeatures(m_frameSetPrev);
-
         tsStart = ros::Time::now();
 
         m_lba->addFrameSet(frameSet, replaceCurrentFrameSet);
@@ -423,7 +412,7 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
             if (err < k_sphericalErrorThresh)
             {
                 Point2DFeature* featurePrev = feature->prevMatch();
-                removeCorrespondence(featurePrev, feature, true);
+                removeCorrespondence(featurePrev, feature);
             }
         }
 
@@ -549,8 +538,21 @@ MonoVO::keyCurrentFrameSet(void)
         return;
     }
 
+    m_init = true;
+
     // remove singleton features
     removeSingletonFeatures(m_frameSetPrev);
+
+    std::vector<Point2DFeaturePtr>& featuresCurr = m_frameSetCurr->frames().at(0)->features2D();
+    for (size_t i = 0; i < featuresCurr.size(); ++i)
+    {
+        Point3DFeaturePtr& scenePoint = featuresCurr.at(i)->feature3D();
+
+        if (scenePoint)
+        {
+            scenePoint->attributes() = 0;
+        }
+    }
 
     m_frameSetPrev = m_frameSetCurr;
     m_frameSetCurr.reset();
@@ -587,8 +589,7 @@ MonoVO::removeSingletonFeatures(FrameSetPtr& frameSet) const
 
 void
 MonoVO::removeCorrespondence(Point2DFeature* featurePrev,
-                             Point2DFeature* featureCurr,
-                             bool removeScenePointFor2CorrespondenceCase) const
+                             Point2DFeature* featureCurr) const
 {
     featurePrev->nextMatches().clear();
     featurePrev->bestNextMatchId() = -1;
@@ -598,24 +599,27 @@ MonoVO::removeCorrespondence(Point2DFeature* featurePrev,
 
     Point3DFeaturePtr& scenePoint = featurePrev->feature3D();
 
-    std::vector<Point2DFeature*>::reverse_iterator it = scenePoint->features2D().rbegin();
-    while (it != scenePoint->features2D().rend())
+    if ((scenePoint->attributes() & Point3DFeature::OBSERVED_IN_CURRENT_FRAME) ||
+        (scenePoint->attributes() & Point3DFeature::TRIANGULATED_IN_CURRENT_FRAME))
     {
-        Point2DFeature* feature = *it;
-        if (feature == featureCurr)
+        std::vector<Point2DFeature*>::reverse_iterator it = scenePoint->features2D().rbegin();
+        while (it != scenePoint->features2D().rend())
         {
-            scenePoint->features2D().erase(--it.base());
-            break;
+            Point2DFeature* feature = *it;
+            if (feature == featureCurr)
+            {
+                scenePoint->features2D().erase(--it.base());
+                break;
+            }
+
+            ++it;
         }
-
-        ++it;
+        featureCurr->feature3D().reset();
     }
-    featureCurr->feature3D().reset();
 
-    if (removeScenePointFor2CorrespondenceCase &&
-        featurePrev->prevMatches().empty())
+    if (scenePoint->attributes() & Point3DFeature::TRIANGULATED_IN_CURRENT_FRAME)
     {
-        it = scenePoint->features2D().rbegin();
+        std::vector<Point2DFeature*>::reverse_iterator it = scenePoint->features2D().rbegin();
         while (it != scenePoint->features2D().rend())
         {
             Point2DFeature* feature = *it;
@@ -716,6 +720,39 @@ MonoVO::matchDescriptors(const cv::Mat& queryDescriptors,
 }
 
 void
+MonoVO::windowedMatchingMask(const FrameSetConstPtr& frameSet1,
+                             const FrameSetConstPtr& frameSet2,
+                             float maxDeltaX, float maxDeltaY,
+                             cv::Mat& mask) const
+{
+    std::vector<Point2DFeaturePtr>& features1 = frameSet1->frames().at(0)->features2D();
+    std::vector<Point2DFeaturePtr>& features2 = frameSet2->frames().at(0)->features2D();
+
+    if (features1.empty() || features2.empty())
+    {
+        mask = cv::Scalar(0);
+        return;
+    }
+
+    int n1 = static_cast<int>(features1.size());
+    int n2 = static_cast<int>(features2.size());
+
+    mask = cv::Mat(n1, n2, CV_8UC1);
+    mask = cv::Scalar(0);
+
+    for (int i = 0; i < n1; ++i)
+    {
+        const cv::Point2f& keypoint1 = features1.at(i)->keypoint().pt;
+        for (int j = 0; j < n2; ++j)
+        {
+            cv::Point2f diff = features2.at(j)->keypoint().pt - keypoint1;
+
+            mask.at<uchar>(i, j) = std::abs(diff.x) < maxDeltaX && std::abs(diff.y) < maxDeltaY;
+        }
+    }
+}
+
+void
 MonoVO::match2D2DCorrespondences(const FrameSetConstPtr& frameSet1,
                                  const FrameSetConstPtr& frameSet2,
                                  std::vector<cv::DMatch>& matches) const
@@ -728,10 +765,13 @@ MonoVO::match2D2DCorrespondences(const FrameSetConstPtr& frameSet1,
     std::vector<cv::Mat> dtors2;
     getDescriptorMatVec(frameSet2, dtors2);
 
+    cv::Mat matchingMask;
+//    windowedMatchingMask(frameSet1, frameSet2, k_maxDelta, k_maxDelta, matchingMask);
+
     // match between image in frame set 1 and image in frame set 2
     std::vector<cv::DMatch> candidateMatches;
     matchDescriptors(dtors1.at(0), dtors2.at(0), candidateMatches,
-                     cv::Mat(), RATIO_MATCH, k_maxDistanceRatio);
+                     matchingMask, RATIO_MATCH, k_maxDistanceRatio);
 
     // Remove matches which have the same training descriptor index.
     std::vector<std::vector<cv::DMatch> > revMatches(dtors2.at(0).rows);
@@ -809,7 +849,7 @@ MonoVO::reconstructScenePoint(Point2DFeaturePtr& f1,
     }
 
     // check if scene point is outside allowable stereo range
-//    if (gamma(0) > k_maxStereoRange)
+//    if (gamma(0) > k_maxStereoRange * H.block<3,1>(0,3).norm())
 //    {
 //        return false;
 //    }
@@ -832,8 +872,10 @@ MonoVO::reconstructScenePoint(Point2DFeaturePtr& f1,
 
     Point3DFeaturePtr p3D = boost::make_shared<Point3DFeature>();
     p3D->point() = transformPoint(m_cameraSystem->getGlobalCameraPose(frame1->cameraId()), P1);
+    p3D->pointFromStereo() = p3D->point();
     p3D->features2D().push_back(f1.get());
     p3D->features2D().push_back(f2.get());
+    p3D->attributes() = Point3DFeature::TRIANGULATED_IN_CURRENT_FRAME;
 
     f1->feature3D() = p3D;
     f2->feature3D() = p3D;

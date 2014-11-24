@@ -236,7 +236,7 @@ PoseGraph::findLoopClosures(const std::string& vocFilename,
             {
                 const FramePtr& frame = frameSet->frames().at(k);
 
-                if (frame.get() == 0)
+                if (!frame)
                 {
                     continue;
                 }
@@ -263,7 +263,7 @@ PoseGraph::findLoopClosures(const std::string& vocFilename,
 
             for (int k = 0; k < frameSet->frames().size(); ++k)
             {
-                if (threads.at(k).get() == 0)
+                if (!threads.at(k))
                 {
                     continue;
                 }
@@ -288,7 +288,7 @@ PoseGraph::findLoopClosuresHelper(FrameTag frameTagQuery,
 {
     FramePtr& frameQuery = m_sparseGraph->frameSetSegment(frameTagQuery.frameSetSegmentId).at(frameTagQuery.frameSetId)->frames().at(frameTagQuery.frameId);
 
-    if (frameQuery.get() == 0)
+    if (!frameQuery)
     {
         return;
     }
@@ -384,12 +384,6 @@ PoseGraph::findLoopClosuresHelper(FrameTag frameTagQuery,
 std::vector<FrameTag>
 PoseGraph::computeValidMatchingFrameTags(FrameTag queryTag) const
 {
-    std::vector<bool> cameraFlags(k_matchingMask.rows);
-    for (int i = 0; i < k_matchingMask.rows; ++i)
-    {
-        cameraFlags.at(i) = (cv::countNonZero(k_matchingMask.row(i)) > 0);
-    }
-
     std::vector<FrameTag> matchingTags;
 
     for (int i = 0; i < m_sparseGraph->frameSetSegments().size(); ++i)
@@ -404,7 +398,7 @@ PoseGraph::computeValidMatchingFrameTags(FrameTag queryTag) const
             {
                 const FramePtr& frame = frameSet->frames().at(k);
 
-                if (frame.get() == 0)
+                if (!frame)
                 {
                     continue;
                 }

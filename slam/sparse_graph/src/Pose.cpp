@@ -3,16 +3,18 @@
 namespace px
 {
 
-Pose::Pose()
- : Transform()
+Pose::Pose(TransformType type)
+ : Transform(type)
+ , m_covariance(Eigen::Matrix<double,7,7>::Zero())
 {
-    m_covariance.setZero();
+
 }
 
-Pose::Pose(const Eigen::Matrix4d& H)
- : Transform(H)
+Pose::Pose(const Eigen::Matrix4d& H, TransformType type)
+ : Transform(H, type)
+ , m_covariance(Eigen::Matrix<double,7,7>::Zero())
 {
-   m_covariance.setZero();
+
 }
 
 ros::Time&

@@ -13,8 +13,8 @@ class Pose: public Transform
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    Pose();
-    Pose(const Eigen::Matrix4d& H);
+    Pose(TransformType type = TRANSFORM_SE3);
+    Pose(const Eigen::Matrix4d& H, TransformType type = TRANSFORM_SE3);
 
     ros::Time& timeStamp(void);
     const ros::Time& timeStamp(void) const;

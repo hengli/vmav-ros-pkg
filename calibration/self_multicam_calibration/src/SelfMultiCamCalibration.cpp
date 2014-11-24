@@ -192,7 +192,7 @@ SelfMultiCamCalibration::processFrames(const ros::Time& stamp,
     }
     for (size_t i = 0; i < m_mvo.size(); ++i)
     {
-        if (m_mvo.at(i)->getCurrentInlierCorrespondenceCount() < 40)
+        if (m_mvo.at(i)->getCurrent2D3DCorrespondenceCount() < 40)
         {
             keyFrames = true;
             break;
@@ -308,9 +308,7 @@ SelfMultiCamCalibration::run(const std::string& vocFilename,
         }
     }
 
-
-    runPG(m_sparseGraph, vocFilename, 15, 30, matchingMask,
-          Point3DFeature::OBSERVED_BY_MULTIPLE_CAMERAS);
+    runPG(m_sparseGraph, vocFilename, 15, 30, matchingMask);
 
     m_sgv.visualize();
 
@@ -583,8 +581,7 @@ SelfMultiCamCalibration::processSubGraph(const SparseGraphPtr& graph,
     graphViz->visualize();
 
     ROS_INFO("Running pose graph optimization...");
-    runPG(graph, vocFilename, 50, 10, matchingMask,
-          Point3DFeature::OBSERVED_BY_CAMERA_MULTIPLE_TIMES);
+    runPG(graph, vocFilename, 50, 10, matchingMask);
 
     graphViz->visualize();
 
@@ -626,6 +623,7 @@ SelfMultiCamCalibration::runHandEyeCalibration(void)
             ROS_INFO_STREAM(H_s_0);
 
             ++stereoVOId;
+            ++i;
         }
     }
 
@@ -659,8 +657,7 @@ SelfMultiCamCalibration::runPG(const SparseGraphPtr& graph,
                                const std::string& vocFilename,
                                int minLoopCorrespondences2D3D,
                                int nImageMatches,
-                               const cv::Mat& matchingMask,
-                               int scenePointFlag)
+                               const cv::Mat& matchingMask)
 {
     PoseGraphPtr poseGraph = boost::make_shared<PoseGraph>(m_cameraSystem,
                                                            boost::ref(graph),
@@ -700,7 +697,14 @@ SelfMultiCamCalibration::runPG(const SparseGraphPtr& graph,
         Point3DFeaturePtr scenePoint1 = corr2D3D.at(i).first->feature3D();
         Point3DFeaturePtr scenePoint2 = corr2D3D.at(i).second;
 
-        scenePoint1->attributes() |= scenePointFlag;
+        if (scenePoint1->features2D().front()->frame()->cameraId() == scenePoint2->features2D().front()->frame()->cameraId())
+        {
+            scenePoint1->attributes() |= Point3DFeature::OBSERVED_BY_CAMERA_MULTIPLE_TIMES;
+        }
+        else
+        {
+            scenePoint1->attributes() |= Point3DFeature::OBSERVED_BY_MULTIPLE_CAMERAS;
+        }
 
         if (scenePoint1 == scenePoint2)
         {
@@ -1036,7 +1040,9 @@ SelfMultiCamCalibration::runJointOptimization(const std::vector<std::string>& ch
     }
 
     std::vector<StereoCameraCalibration> scCalibVec;
+    std::vector<std::pair<int,int> > scIdVec;
     std::vector<CameraCalibration> mcCalibVec;
+    std::vector<int> mcIdVec;
     std::vector<std::vector<std::vector<cv::Point3f> > > chessboardScenePoints;
     size_t nChessboardResiduals = 0;
     for (size_t i = 0; i < m_voMap.size(); ++i)
@@ -1046,6 +1052,7 @@ SelfMultiCamCalibration::runJointOptimization(const std::vector<std::string>& ch
         if (item.first == STEREO_VO)
         {
             scCalibVec.resize(scCalibVec.size() + 1);
+            scIdVec.push_back(std::make_pair(i, i + 1));
 
             StereoCameraCalibration& scCalib = scCalibVec.back();
 
@@ -1118,6 +1125,7 @@ SelfMultiCamCalibration::runJointOptimization(const std::vector<std::string>& ch
         if (item.first == MONO_VO)
         {
             mcCalibVec.resize(mcCalibVec.size() + 1);
+            mcIdVec.push_back(i);
 
             CameraCalibration& mcCalib = mcCalibVec.back();
 
@@ -1170,8 +1178,8 @@ SelfMultiCamCalibration::runJointOptimization(const std::vector<std::string>& ch
     {
         StereoCameraCalibration& scCalib = scCalibVec.at(i);
 
-        int cameraLeftId = scCalib.cameraLeft()->cameraId();
-        int cameraRightId = scCalib.cameraRight()->cameraId();
+        int cameraLeftId = scIdVec.at(i).first;
+        int cameraRightId = scIdVec.at(i).second;
 
         const cv::Mat& cameraPoses1 = scCalib.cameraPosesLeft();
 
@@ -1235,7 +1243,7 @@ SelfMultiCamCalibration::runJointOptimization(const std::vector<std::string>& ch
     {
         CameraCalibration& mcCalib = mcCalibVec.at(i);
 
-        int cameraId = mcCalib.camera()->cameraId();
+        int cameraId = mcIdVec.at(i);
 
         const cv::Mat& cameraPoses = mcCalib.cameraPoses();
 
@@ -1316,8 +1324,8 @@ SelfMultiCamCalibration::runJointOptimization(const std::vector<std::string>& ch
     {
         StereoCameraCalibration& scCalib = scCalibVec.at(i);
 
-        int cameraLeftId = scCalib.cameraLeft()->cameraId();
-        int cameraRightId = scCalib.cameraRight()->cameraId();
+        int cameraLeftId = scIdVec.at(i).first;
+        int cameraRightId = scIdVec.at(i).second;
 
         Eigen::Matrix4d H_1_2 = invertHomogeneousTransform(m_cameraSystem->getGlobalCameraPose(cameraRightId)) *
                                 m_cameraSystem->getGlobalCameraPose(cameraLeftId);
@@ -1418,7 +1426,7 @@ SelfMultiCamCalibration::runJointOptimization(const std::vector<std::string>& ch
     {
         CameraCalibration& mcCalib = mcCalibVec.at(i);
 
-        int cameraId = mcCalib.camera()->cameraId();
+        int cameraId = mcIdVec.at(i);
 
         for (int j = 0; j < mcCalib.cameraPoses().rows; ++j)
         {
@@ -1490,7 +1498,7 @@ SelfMultiCamCalibration::runJointOptimization(const std::vector<std::string>& ch
 
     reprojErrorStats(m_sparseGraph, avgError, maxError, avgScenePointDepth, featureCount);
 
-    ROS_INFO("Reprojection error after full bundle adjustment: avg = %.3f | max = %.3f | avg depth = %.3f | count = %lu",
+    ROS_INFO("Reprojection error after joint optimization: avg = %.3f | max = %.3f | avg depth = %.3f | count = %lu",
              avgError, maxError, avgScenePointDepth, featureCount);
 }
 

@@ -40,8 +40,7 @@ private:
     void runPG(const SparseGraphPtr& graph, const std::string& vocFilename,
                int minLoopCorrespondences2D3D,
                int nImageMatches,
-               const cv::Mat& matchingMask = cv::Mat(),
-               int scenePointFlag = 0);
+               const cv::Mat& matchingMask = cv::Mat());
     void runBA(const SparseGraphPtr& graph,
                const boost::shared_ptr<SparseGraphViz>& graphViz) const;
     void runJointOptimization(const std::vector<std::string>& chessboardDataFilenames);

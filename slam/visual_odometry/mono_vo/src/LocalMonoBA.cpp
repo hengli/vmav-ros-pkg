@@ -126,19 +126,13 @@ LocalMonoBA::optimize(void)
         problem.SetParameterBlockConstant((*it)->systemPose()->translationData());
     }
 
-    if (m_window.size() < k_N)
-    {
-        problem.SetParameterBlockConstant(m_window.front()->systemPose()->rotationData());
-        problem.SetParameterBlockConstant(m_window.front()->systemPose()->translationData());
-    }
-
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
     options.max_num_iterations = 20;
     options.num_threads = 4;
     options.num_linear_solver_threads = 4;
     options.max_num_consecutive_invalid_steps = 2;
-    
+
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
 }

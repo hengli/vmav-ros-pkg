@@ -40,6 +40,7 @@ add_executable(mono_vo_node
 )
 
 target_link_libraries(mono_vo_node
+  /usr/local/lib/libopencv_ocl.so
   ${catkin_LIBRARIES}
   mono_vo
 )

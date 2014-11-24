@@ -68,8 +68,7 @@ private:
     void removeSingletonFeatures(FrameSetPtr& frameSet) const;
 
     void removeCorrespondence(Point2DFeature* featurePrev,
-                              Point2DFeature* featureCurr,
-                              bool removeScenePointFor2CorrespondenceCase) const;
+                              Point2DFeature* featureCurr) const;
 
     void getDescriptorMat(const FrameConstPtr& frame, cv::Mat& dmat) const;
     void getDescriptorMatVec(const FrameSetConstPtr& frameSet,
@@ -81,6 +80,11 @@ private:
                           const cv::Mat& mask = cv::Mat(),
                           DescriptorMatchMethod matchMethod = BEST_MATCH,
                           float matchParam = 0.0f) const;
+
+    void windowedMatchingMask(const FrameSetConstPtr& frameSet1,
+                              const FrameSetConstPtr& frameSet2,
+                              float maxDeltaX, float maxDeltaY,
+                              cv::Mat& mask) const;
 
     void match2D2DCorrespondences(const FrameSetConstPtr& frameSet1,
                                   const FrameSetConstPtr& frameSet2,
@@ -115,7 +119,7 @@ private:
     void visualizeCorrespondences(const FrameSetConstPtr& frameSet) const;
 
     const double k_epipolarThresh;
-    const float k_imageMotionThresh;
+    const float k_maxDelta;
     const float k_maxDistanceRatio;
     const double k_maxStereoRange;
     const double k_nominalFocalLength;
