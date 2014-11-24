@@ -16,7 +16,7 @@ namespace px
 MonoVO::MonoVO(const CameraSystemConstPtr& cameraSystem,
                int cameraId, bool preUndistort)
  : k_epipolarThresh(0.00005)
- , k_imageMotionThresh(10.0f)
+ , k_imageMotionThresh(5.0f)
  , k_maxDistanceRatio(0.7f)
  , k_maxStereoRange(100.0)
  , k_nominalFocalLength(300.0)
@@ -26,8 +26,8 @@ MonoVO::MonoVO(const CameraSystemConstPtr& cameraSystem,
  , m_cameraSystem(cameraSystem)
  , m_cameraId(cameraId)
  , m_init(false)
- , m_nInlierCorrespondences(0)
- , m_debug(true)
+ , m_n2D3DCorrespondences(0)
+ , m_debug(false)
 {
     if (k_preUndistort)
     {
@@ -156,6 +156,8 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
 
         frameSet->systemPose() = pose;
 
+        m_lba->addFrameSet(frameSet, replaceCurrentFrameSet);
+
         m_frameSetPrev = frameSet;
     }
     else
@@ -218,6 +220,7 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
             // For each match, reconstruct the scene point.
             // If the reprojection error of the scene point in either camera exceeds
             // a threshold, remove the corresponding match.
+            m_n2D3DCorrespondences = 0;
             for (size_t i = 0; i < matches.size(); ++i)
             {
                 if (!inlierMatches.at(i))
@@ -230,7 +233,11 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
                 Point2DFeaturePtr& featurePrev = featuresPrev.at(match.queryIdx);
                 Point2DFeaturePtr& featureCurr = featuresCurr.at(match.trainIdx);
 
-                if (!reconstructScenePoint(featurePrev, featureCurr, relativeMotion))
+                if (reconstructScenePoint(featurePrev, featureCurr, relativeMotion))
+                {
+                    ++m_n2D3DCorrespondences;
+                }
+                else
                 {
                     inlierMatches.at(i) = false;
                 }
@@ -290,6 +297,7 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
 
             int nCorrespondences2D2D = 0;
             int nTriCorrespondences2D2D = 0;
+            m_n2D3DCorrespondences = 0;
             for (size_t i = 0; i < matches.size(); ++i)
             {
                 const cv::DMatch& match = matches.at(i);
@@ -319,6 +327,8 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
 
                 featureCurr->feature3D() = scenePoint;
                 scenePoint->features2D().push_back(featureCurr.get());
+
+                ++m_n2D3DCorrespondences;
             }
 
             if (m_debug)
@@ -328,18 +338,10 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
             }
         }
 
-        m_nInlierCorrespondences = 0;
-        for (size_t i = 0; i < matches.size(); ++i)
-        {
-            if (inlierMatches.at(i))
-            {
-                ++m_nInlierCorrespondences;
-            }
-        }
-        if (m_nInlierCorrespondences < 10)
+        if (m_n2D3DCorrespondences < 10)
         {
             ROS_WARN("# 2D-3D correspondences (%lu) is too low for reliable motion estimation.",
-                     m_nInlierCorrespondences);
+                     m_n2D3DCorrespondences);
         }
 
         Eigen::Matrix4d systemPose = m_cameraSystem->getGlobalCameraPose(m_cameraId) * cameraPose;
@@ -399,7 +401,8 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
         m_lba->addFrameSet(frameSet, replaceCurrentFrameSet);
 
         // remove correspondences that have high reprojection errors
-        Eigen::Matrix4d H_sys_cam = invertHomogeneousTransform(m_cameraSystem->getGlobalCameraPose(frame->cameraId()));
+        Eigen::Matrix4d H_sys = invertHomogeneousTransform(m_cameraSystem->getGlobalCameraPose(frame->cameraId())) *
+                                frameSet->systemPose()->toMatrix();
 
         for (size_t i = 0; i < featuresCurr.size(); ++i)
         {
@@ -413,8 +416,7 @@ MonoVO::processFrames(FrameSetPtr& frameSet)
             Point3DFeaturePtr& scenePoint = feature->feature3D();
             Eigen::Vector3d P = scenePoint->point();
 
-            Eigen::Matrix4d H = H_sys_cam * frameSet->systemPose()->toMatrix();
-            Eigen::Vector3d P_cam = transformPoint(H, P);
+            Eigen::Vector3d P_cam = transformPoint(H_sys, P);
             Eigen::Vector3d ray_est = P_cam.normalized();
 
             double err = fabs(ray_est.dot(feature->ray()));
@@ -534,9 +536,9 @@ MonoVO::getCurrentPose(geometry_msgs::PoseStampedPtr& pose) const
 }
 
 size_t
-MonoVO::getCurrentInlierCorrespondenceCount(void) const
+MonoVO::getCurrent2D3DCorrespondenceCount(void) const
 {
-    return m_nInlierCorrespondences;
+    return m_n2D3DCorrespondences;
 }
 
 void
@@ -807,10 +809,10 @@ MonoVO::reconstructScenePoint(Point2DFeaturePtr& f1,
     }
 
     // check if scene point is outside allowable stereo range
-    if (gamma(0) > k_maxStereoRange)
-    {
-        return false;
-    }
+//    if (gamma(0) > k_maxStereoRange)
+//    {
+//        return false;
+//    }
 
     Eigen::Vector3d P1 = gamma(0) * f1->ray();
     Eigen::Vector3d P2 = H.block<3,3>(0,0) * P1 + H.block<3,1>(0,3);

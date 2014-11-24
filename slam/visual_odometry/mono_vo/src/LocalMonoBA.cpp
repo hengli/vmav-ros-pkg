@@ -15,7 +15,10 @@ LocalMonoBA::LocalMonoBA(const CameraSystemConstPtr& cameraSystem,
  : k_cameraId(cameraId)
  , k_N(N)
 {
-
+    m_H_c_s = cameraSystem->getGlobalCameraPose(cameraId);
+    Eigen::Matrix4d H_s_c = invertHomogeneousTransform(m_H_c_s);
+    m_q_s_c = Eigen::Quaterniond(H_s_c.block<3,3>(0,0));
+    m_t_s_c = H_s_c.block<3,1>(0,3);
 }
 
 bool
@@ -90,7 +93,9 @@ LocalMonoBA::optimize(void)
             ceres::LossFunction* lossFunction = new ceres::HuberLoss(0.0000055555);
 
             ceres::CostFunction* costFunction =
-                CostFunctionFactory::instance()->generateCostFunction(feature->ray());
+                CostFunctionFactory::instance()->generateCostFunction(m_q_s_c,
+                                                                      m_t_s_c,
+                                                                      feature->ray());
 
             problem.AddResidualBlock(costFunction, lossFunction,
                                      frameSet->systemPose()->rotationData(),
@@ -119,6 +124,12 @@ LocalMonoBA::optimize(void)
     {
         problem.SetParameterBlockConstant((*it)->systemPose()->rotationData());
         problem.SetParameterBlockConstant((*it)->systemPose()->translationData());
+    }
+
+    if (m_window.size() < k_N)
+    {
+        problem.SetParameterBlockConstant(m_window.front()->systemPose()->rotationData());
+        problem.SetParameterBlockConstant(m_window.front()->systemPose()->translationData());
     }
 
     ceres::Solver::Options options;

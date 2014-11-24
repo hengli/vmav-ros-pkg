@@ -24,6 +24,10 @@ private:
     const int k_cameraId;
     const int k_N;
 
+    Eigen::Matrix4d m_H_c_s;
+    Eigen::Quaterniond m_q_s_c;
+    Eigen::Vector3d m_t_s_c;
+
     std::list<FrameSetPtr> m_window;
 };
 

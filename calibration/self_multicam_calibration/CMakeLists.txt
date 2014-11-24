@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   cmake_modules
   cv_bridge
   hand_eye_calibration
+  mono_vo
   pose_graph
   pose_imu_calibration
   stereo_vo

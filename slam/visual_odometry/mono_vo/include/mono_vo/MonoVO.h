@@ -34,7 +34,7 @@ public:
     bool getCurrentPose(Eigen::Matrix4d& pose) const;
     bool getCurrentPose(geometry_msgs::PoseStampedPtr& pose) const;
 
-    size_t getCurrentInlierCorrespondenceCount(void) const;
+    size_t getCurrent2D3DCorrespondenceCount(void) const;
 
     void keyCurrentFrameSet(void);
 
@@ -149,7 +149,7 @@ private:
 
     boost::mutex m_globalMutex;
     bool m_init;
-    size_t m_nInlierCorrespondences;
+    size_t m_n2D3DCorrespondences;
     bool m_debug;
 };
 

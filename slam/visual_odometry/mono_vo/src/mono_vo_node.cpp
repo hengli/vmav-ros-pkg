@@ -70,8 +70,8 @@ monoVOThread(std::vector<px::AtomicContainer<cv::Mat> >& frames,
             vo.processFrames(frameSet);
 
             if (!firstFrame &&
-                vo.getCurrentInlierCorrespondenceCount() > 0 &&
-                vo.getCurrentInlierCorrespondenceCount() < 40)
+                vo.getCurrent2D3DCorrespondenceCount() > 0 &&
+                vo.getCurrent2D3DCorrespondenceCount() < 40)
             {
                 vo.keyCurrentFrameSet();
 

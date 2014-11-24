@@ -8,6 +8,7 @@
 #include "camera_calibration/StereoCameraCalibration.h"
 #include "camera_models/CostFunctionFactory.h"
 #include "ceres/ceres.h"
+#include "hand_eye_calibration/ExtendedHandEyeCalibration.h"
 #include "hand_eye_calibration/HandEyeCalibration.h"
 #include "location_recognition/OrbLocationRecognition.h"
 #include "pose_imu_calibration/PoseIMUCalibration.h"
@@ -42,24 +43,35 @@ SelfMultiCamCalibration::SelfMultiCamCalibration(ros::NodeHandle& nh,
  , m_sparseGraph(sparseGraph)
  , m_sgv(nh, sparseGraph)
 {
-    int i = 0;
-    while (i < cameraSystem->cameraCount())
+    for (int i = 0; i < cameraSystem->cameraCount(); ++i)
     {
-        std::ostringstream oss;
-
         if (cameraSystem->isPartOfStereoPair(i))
         {
+            m_voMap.push_back(std::make_pair(STEREO_VO, m_svo.size()));
+            m_voMap.push_back(std::make_pair(STEREO_VO, m_svo.size()));
+
             m_svo.push_back(boost::make_shared<StereoVO>(cameraSystem, i, i + 1, false));
 
-            i += 2;
-
-            oss << "stereo" << m_svo.size();
+            ++i;
         }
         else
         {
-            ++i;
+            m_voMap.push_back(std::make_pair(MONO_VO, m_mvo.size()));
 
-            oss << "mono" << i;
+            m_mvo.push_back(boost::make_shared<MonoVO>(cameraSystem, i, false));
+        }
+    }
+
+    for (size_t i = 0; i < m_svo.size() + m_mvo.size(); ++i)
+    {
+        std::ostringstream oss;
+        if (i < m_svo.size())
+        {
+            oss << "stereo" << i + 1;
+        }
+        else
+        {
+            oss << "mono" << i - m_svo.size() + 1;
         }
 
         m_subSparseGraphs.push_back(boost::make_shared<SparseGraph>());
@@ -83,6 +95,14 @@ SelfMultiCamCalibration::init(const std::string& detectorType,
         }
     }
 
+    for (size_t i = 0; i < m_mvo.size(); ++i)
+    {
+        if (!m_mvo.at(i)->init(detectorType, descriptorExtractorType, descriptorMatcherType))
+        {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -91,25 +111,45 @@ SelfMultiCamCalibration::processFrames(const ros::Time& stamp,
                                        const std::vector<cv::Mat>& images,
                                        const sensor_msgs::ImuConstPtr& imuMsg)
 {
-    for (size_t i = 0; i < m_svo.size(); ++i)
+    for (size_t i = 0; i < m_voMap.size(); ++i)
     {
-        if (!m_svo.at(i)->readFrames(stamp, images.at(i * 2),
-                                     images.at(i * 2 + 1)))
+        std::pair<int,int>& item = m_voMap.at(i);
+
+        switch (item.first)
         {
-            return false;
+        case STEREO_VO:
+            if (!m_svo.at(item.second)->readFrames(stamp, images.at(i),
+                                                   images.at(i + 1)))
+            {
+                return false;
+            }
+            ++i;
+            break;
+        case MONO_VO:
+            if (!m_mvo.at(item.second)->readFrame(stamp, images.at(i)))
+            {
+                return false;
+            }
+            break;
         }
     }
 
-    std::vector<FrameSetPtr> frameSets(m_svo.size());
-    std::vector<boost::shared_ptr<boost::thread> > threads(m_svo.size());
+    std::vector<FrameSetPtr> frameSets(m_svo.size() + m_mvo.size());
+    std::vector<boost::shared_ptr<boost::thread> > threads(m_svo.size() + m_mvo.size());
     for (size_t i = 0; i < m_svo.size(); ++i)
     {
         threads.at(i) = boost::make_shared<boost::thread>(boost::bind(&StereoVO::processFrames,
                                                                       m_svo.at(i),
                                                                       boost::ref(frameSets.at(i))));
     }
+    for (size_t i = 0; i < m_mvo.size(); ++i)
+    {
+        threads.at(i + m_svo.size()) = boost::make_shared<boost::thread>(boost::bind(&MonoVO::processFrames,
+                                                                                     m_mvo.at(i),
+                                                                                     boost::ref(frameSets.at(i + m_svo.size()))));
+    }
 
-    for (size_t i = 0; i < m_svo.size(); ++i)
+    for (size_t i = 0; i < m_svo.size() + m_mvo.size(); ++i)
     {
         threads.at(i)->join();
 
@@ -122,7 +162,7 @@ SelfMultiCamCalibration::processFrames(const ros::Time& stamp,
     }
 
     bool init = true;
-    for (size_t i = 0; i < m_svo.size(); ++i)
+    for (size_t i = 0; i < m_svo.size() + m_mvo.size(); ++i)
     {
         if (m_subSparseGraphs.at(i)->frameSetSegment(0).empty())
         {
@@ -150,13 +190,27 @@ SelfMultiCamCalibration::processFrames(const ros::Time& stamp,
             break;
         }
     }
+    for (size_t i = 0; i < m_mvo.size(); ++i)
+    {
+        if (m_mvo.at(i)->getCurrentInlierCorrespondenceCount() < 40)
+        {
+            keyFrames = true;
+            break;
+        }
+    }
 
     if (keyFrames)
     {
         for (size_t i = 0; i < m_svo.size(); ++i)
         {
             m_svo.at(i)->keyCurrentFrameSet();
-
+        }
+        for (size_t i = 0; i < m_mvo.size(); ++i)
+        {
+            m_mvo.at(i)->keyCurrentFrameSet();
+        }
+        for (size_t i = 0; i < m_svo.size() + m_mvo.size(); ++i)
+        {
             m_subSparseGraphs.at(i)->frameSetSegment(0).push_back(frameSets.at(i));
 
             m_subsgv.at(i)->visualize(10);
@@ -171,31 +225,26 @@ SelfMultiCamCalibration::run(const std::string& vocFilename,
                              const std::string& chessboardDataDir,
                              bool readIntermediateData)
 {
-    cv::Mat matchingMask = cv::Mat::zeros(m_cameraSystem->cameraCount(), m_cameraSystem->cameraCount(), CV_8U);
-    for (int i = 0; i < m_cameraSystem->cameraCount(); i += 2)
-    {
-        matchingMask.at<unsigned char>(i,i) = 1;
-    }
-
     if (!readIntermediateData)
     {
-        std::vector<boost::shared_ptr<boost::thread> > threads(m_svo.size());
-        for (size_t i = 0; i < m_svo.size(); ++i)
-        {
-            ROS_INFO("Processing subgraph for stereo camera %lu...", i);
+        ROS_INFO("Processing subgraph for stereo camera 1...");
 
-            threads.at(i) = boost::make_shared<boost::thread>(boost::bind(&SelfMultiCamCalibration::processSubGraph,
-                                                                          this,
-                                                                          boost::ref(m_subSparseGraphs.at(i)),
-                                                                          boost::ref(m_subsgv.at(i)),
-                                                                          boost::cref(vocFilename),
-                                                                          boost::cref(matchingMask)));
+        cv::Mat matchingMask = cv::Mat::zeros(m_cameraSystem->cameraCount(), m_cameraSystem->cameraCount(), CV_8U);
+        for (int i = 0; i < m_voMap.size(); ++i)
+        {
+            std::pair<int,int>& item = m_voMap.at(i);
+
+            if (item.first == STEREO_VO)
+            {
+                matchingMask.at<unsigned char>(i,i) = 1;
+                break;
+            }
         }
 
-        for (size_t i = 0; i < m_svo.size(); ++i)
-        {
-            threads.at(i)->join();
-        }
+        processSubGraph(m_subSparseGraphs.at(0),
+                        m_subsgv.at(0),
+                        vocFilename,
+                        matchingMask);
 
         ROS_INFO("Running hand-eye calibration...");
         if (!runHandEyeCalibration())
@@ -226,37 +275,79 @@ SelfMultiCamCalibration::run(const std::string& vocFilename,
     }
 
     ROS_INFO("Running pose graph optimization for all cameras...");
-    matchingMask = cv::Mat::zeros(m_cameraSystem->cameraCount(), m_cameraSystem->cameraCount(), CV_8U);
-    for (int i = 0; i < m_cameraSystem->cameraCount(); i += 2)
+    cv::Mat matchingMask = cv::Mat::zeros(m_cameraSystem->cameraCount(), m_cameraSystem->cameraCount(), CV_8U);
+    for (size_t i = 0; i < m_voMap.size(); ++i)
     {
-        for (int j = 0; j < m_cameraSystem->cameraCount(); j += 2)
+        std::pair<int,int>& item1 = m_voMap.at(i);
+
+        for (size_t j = 0; j < m_voMap.size(); ++j)
         {
-            if (i == j)
-            {
-                continue;
-            }
+            std::pair<int,int>& item2 = m_voMap.at(j);
+
             matchingMask.at<unsigned char>(i,j) = 1;
+
+            if (item2.first == STEREO_VO)
+            {
+                ++j;
+            }
+        }
+
+        if (item1.first == STEREO_VO)
+        {
+            ++i;
+        }
+    }
+    for (size_t i = 0; i < m_voMap.size(); ++i)
+    {
+        std::pair<int,int>& item = m_voMap.at(i);
+
+        if (item.first == STEREO_VO)
+        {
+            matchingMask.at<unsigned char>(i,i) = 0;
+            break;
         }
     }
 
+
     runPG(m_sparseGraph, vocFilename, 15, 30, matchingMask,
-          Point3DFeature::OBSERVED_BY_MULTIPLE_STEREO_RIGS);
+          Point3DFeature::OBSERVED_BY_MULTIPLE_CAMERAS);
 
     m_sgv.visualize();
 
-    ROS_INFO("Running full bundle adjustment for all cameras...");
+    ROS_INFO("Running joint optimization for all cameras...");
     std::vector<std::string> chessboardDataFilenames;
-    for (size_t i = 0; i < m_svo.size(); ++i)
+    for (size_t i = 0; i < m_voMap.size(); ++i)
     {
-        std::string filename = chessboardDataDir + "/" +
-                               m_cameraSystem->getCamera(i * 2)->cameraName() + "_" +
-                               m_cameraSystem->getCamera(i * 2 + 1)->cameraName() +
-                               "_chessboard_data.dat";
+        std::pair<int,int>& item = m_voMap.at(i);
 
-        chessboardDataFilenames.push_back(filename);
+        if (item.first == STEREO_VO)
+        {
+            std::string filename = chessboardDataDir + "/" +
+                                   m_cameraSystem->getCamera(i)->cameraName() + "_" +
+                                   m_cameraSystem->getCamera(i + 1)->cameraName() +
+                                   "_chessboard_data.dat";
+
+            chessboardDataFilenames.push_back(filename);
+
+            ++i;
+        }
     }
 
-    runFullBA(chessboardDataFilenames);
+    for (size_t i = 0; i < m_voMap.size(); ++i)
+    {
+        std::pair<int,int>& item = m_voMap.at(i);
+
+        if (item.first == MONO_VO)
+        {
+            std::string filename = chessboardDataDir + "/" +
+                                   m_cameraSystem->getCamera(i)->cameraName() +
+                                   "_chessboard_data.dat";
+
+            chessboardDataFilenames.push_back(filename);
+        }
+    }
+
+    runJointOptimization(chessboardDataFilenames);
 
     m_sgv.visualize();
 
@@ -493,7 +584,7 @@ SelfMultiCamCalibration::processSubGraph(const SparseGraphPtr& graph,
 
     ROS_INFO("Running pose graph optimization...");
     runPG(graph, vocFilename, 50, 10, matchingMask,
-          Point3DFeature::OBSERVED_BY_STEREO_RIG_MULTIPLE_TIMES);
+          Point3DFeature::OBSERVED_BY_CAMERA_MULTIPLE_TIMES);
 
     graphViz->visualize();
 
@@ -504,30 +595,60 @@ SelfMultiCamCalibration::processSubGraph(const SparseGraphPtr& graph,
 bool
 SelfMultiCamCalibration::runHandEyeCalibration(void)
 {
-    if (m_svo.size() < 2)
+    if (m_svo.size() + m_mvo.size() <= 1)
     {
         return false;
     }
 
-    std::vector<std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> > > H(m_svo.size());
+    std::vector<std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> > > H(m_svo.size() + m_mvo.size());
 
-    for (size_t i = 0; i < m_svo.size(); ++i)
+    for (size_t i = 0; i < m_svo.size() + m_mvo.size(); ++i)
     {
         H.at(i) = computeRelativeSystemPoses(m_subSparseGraphs.at(i)->frameSetSegment(0));
     }
 
-    for (size_t i = 1; i < m_svo.size(); ++i)
+    int stereoVOId = 0;
+    for (size_t i = 0; i < m_voMap.size(); ++i)
     {
-        HandEyeCalibration hec;
+        std::pair<int,int>& item = m_voMap.at(i);
 
-        Eigen::Matrix4d H_i_0;
-        hec.solve(H.at(i), H.at(0), H_i_0);
+        if (item.first == STEREO_VO)
+        {
+            HandEyeCalibration hec;
 
-        m_cameraSystem->setGlobalCameraPose(i * 2, H_i_0 * m_cameraSystem->getGlobalCameraPose(i * 2));
-        m_cameraSystem->setGlobalCameraPose(i * 2 + 1, H_i_0 * m_cameraSystem->getGlobalCameraPose(i * 2 + 1));
+            Eigen::Matrix4d H_s_0;
+            hec.solve(H.at(stereoVOId), H.at(0), H_s_0);
 
-        ROS_INFO("Initial transform between stereo cameras 0 and %lu:", i);
-        ROS_INFO_STREAM(H_i_0);
+            m_cameraSystem->setGlobalCameraPose(i, H_s_0 * m_cameraSystem->getGlobalCameraPose(i));
+            m_cameraSystem->setGlobalCameraPose(i + 1, H_s_0 * m_cameraSystem->getGlobalCameraPose(i + 1));
+
+            ROS_INFO("Initial transform between stereo cameras 0 and %d:", stereoVOId + 1);
+            ROS_INFO_STREAM(H_s_0);
+
+            ++stereoVOId;
+        }
+    }
+
+    int monoVOId = 0;
+    for (size_t i = 0; i < m_voMap.size(); ++i)
+    {
+        std::pair<int,int>& item = m_voMap.at(i);
+
+        if (item.first == MONO_VO)
+        {
+            ExtendedHandEyeCalibration hec;
+
+            Eigen::Matrix4d H_m_0;
+            double scale;
+            hec.solve(H.at(m_svo.size() + monoVOId), H.at(0), H_m_0, scale);
+
+            m_cameraSystem->setGlobalCameraPose(i, H_m_0 * m_cameraSystem->getGlobalCameraPose(i));
+
+            ROS_INFO("Initial transform between stereo camera 0 and monocular camera %d:", monoVOId + 1);
+            ROS_INFO_STREAM(H_m_0);
+
+            ++monoVOId;
+        }
     }
 
     return true;
@@ -778,7 +899,7 @@ SelfMultiCamCalibration::runBA(const SparseGraphPtr& graph,
 }
 
 void
-SelfMultiCamCalibration::runFullBA(const std::vector<std::string>& chessboardDataFilenames)
+SelfMultiCamCalibration::runJointOptimization(const std::vector<std::string>& chessboardDataFilenames)
 {
     // run full bundle adjustment
     ceres::Problem problem;
@@ -815,7 +936,7 @@ SelfMultiCamCalibration::runFullBA(const std::vector<std::string>& chessboardDat
 
     size_t nFeatureSResiduals = 0;
     size_t nFeatureMResiduals = 0;
-    boost::unordered_set<Point3DFeature*> singletonScenePoints;
+//    boost::unordered_set<Point3DFeature*> singletonScenePoints;
     for (size_t i = 0; i < m_sparseGraph->frameSetSegments().size(); ++i)
     {
         FrameSetSegment& segment = m_sparseGraph->frameSetSegment(i);
@@ -836,14 +957,14 @@ SelfMultiCamCalibration::runFullBA(const std::vector<std::string>& chessboardDat
                     Point2DFeaturePtr& feature = features.at(l);
                     Point3DFeaturePtr& scenePoint = feature->feature3D();
 
-                    if (scenePoint->features2D().size() <= 2)
-                    {
-                        singletonScenePoints.insert(scenePoint.get());
+//                    if (scenePoint->features2D().size() <= 2)
+//                    {
+//                        singletonScenePoints.insert(scenePoint.get());
+//
+//                        continue;
+//                    }
 
-                        continue;
-                    }
-
-                    if (scenePoint->attributes() & Point3DFeature::OBSERVED_BY_MULTIPLE_STEREO_RIGS)
+                    if (scenePoint->attributes() & Point3DFeature::OBSERVED_BY_MULTIPLE_CAMERAS)
                     {
                         ++nFeatureMResiduals;
                     }
@@ -878,13 +999,13 @@ SelfMultiCamCalibration::runFullBA(const std::vector<std::string>& chessboardDat
                     Point2DFeaturePtr& feature = features.at(l);
                     Point3DFeaturePtr& scenePoint = feature->feature3D();
 
-                    if (scenePoint->features2D().size() <= 2)
-                    {
-                        continue;
-                    }
+//                    if (scenePoint->features2D().size() <= 2)
+//                    {
+//                        continue;
+//                    }
 
                     double weight = 1.0;
-                    if (scenePoint->attributes() & Point3DFeature::OBSERVED_BY_MULTIPLE_STEREO_RIGS)
+                    if (scenePoint->attributes() & Point3DFeature::OBSERVED_BY_MULTIPLE_CAMERAS)
                     {
                         weight = wFeatureMResidual;
                     }
@@ -914,90 +1035,147 @@ SelfMultiCamCalibration::runFullBA(const std::vector<std::string>& chessboardDat
         }
     }
 
-    std::vector<StereoCameraCalibration> scCalibs(m_svo.size());
-    std::vector<std::vector<std::vector<cv::Point3f> > > chessboardScenePoints(m_svo.size());
+    std::vector<StereoCameraCalibration> scCalibVec;
+    std::vector<CameraCalibration> mcCalibVec;
+    std::vector<std::vector<std::vector<cv::Point3f> > > chessboardScenePoints;
     size_t nChessboardResiduals = 0;
-    for (size_t i = 0; i < scCalibs.size(); ++i)
+    for (size_t i = 0; i < m_voMap.size(); ++i)
     {
-        StereoCameraCalibration& scCalib = scCalibs.at(i);
+        std::pair<int,int>& item = m_voMap.at(i);
 
-        scCalib.readChessboardData(chessboardDataFilenames.at(i));
-
-        nChessboardResiduals += scCalib.scenePoints().size() *
-                                scCalib.scenePoints().front().size();
-
-        chessboardScenePoints.at(i) = scCalib.scenePoints();
-
-        // print out reprojection error from chessboard data for left camera
-        std::vector<cv::Mat> rvecs1(chessboardScenePoints.at(i).size());
-        std::vector<cv::Mat> tvecs1(chessboardScenePoints.at(i).size());
-
-        for (int j = 0; j < scCalib.cameraPosesLeft().rows; ++j)
+        if (item.first == STEREO_VO)
         {
-            cv::Mat rvec(3, 1, CV_64F);
-            rvec.at<double>(0) =  scCalib.cameraPosesLeft().at<double>(j,0);
-            rvec.at<double>(1) =  scCalib.cameraPosesLeft().at<double>(j,1);
-            rvec.at<double>(2) =  scCalib.cameraPosesLeft().at<double>(j,2);
+            scCalibVec.resize(scCalibVec.size() + 1);
 
-            cv::Mat tvec(3, 1, CV_64F);
-            tvec.at<double>(0) =  scCalib.cameraPosesLeft().at<double>(j,3);
-            tvec.at<double>(1) =  scCalib.cameraPosesLeft().at<double>(j,4);
-            tvec.at<double>(2) =  scCalib.cameraPosesLeft().at<double>(j,5);
+            StereoCameraCalibration& scCalib = scCalibVec.back();
 
-            rvecs1.at(j) = rvec;
-            tvecs1.at(j) = tvec;
-        }
+            scCalib.readChessboardData(chessboardDataFilenames.at(scCalibVec.size() - 1));
 
-        double err1 = m_cameraSystem->getCamera(i * 2)->reprojectionError(chessboardScenePoints.at(i),
+            nChessboardResiduals += scCalib.scenePoints().size() *
+                                    scCalib.scenePoints().front().size();
+
+            chessboardScenePoints.push_back(scCalib.scenePoints());
+
+            // print out reprojection error from chessboard data for left camera
+            std::vector<cv::Mat> rvecs1(chessboardScenePoints.back().size());
+            std::vector<cv::Mat> tvecs1(chessboardScenePoints.back().size());
+
+            for (int j = 0; j < scCalib.cameraPosesLeft().rows; ++j)
+            {
+                cv::Mat rvec(3, 1, CV_64F);
+                rvec.at<double>(0) =  scCalib.cameraPosesLeft().at<double>(j,0);
+                rvec.at<double>(1) =  scCalib.cameraPosesLeft().at<double>(j,1);
+                rvec.at<double>(2) =  scCalib.cameraPosesLeft().at<double>(j,2);
+
+                cv::Mat tvec(3, 1, CV_64F);
+                tvec.at<double>(0) =  scCalib.cameraPosesLeft().at<double>(j,3);
+                tvec.at<double>(1) =  scCalib.cameraPosesLeft().at<double>(j,4);
+                tvec.at<double>(2) =  scCalib.cameraPosesLeft().at<double>(j,5);
+
+                rvecs1.at(j) = rvec;
+                tvecs1.at(j) = tvec;
+            }
+
+            double err1 = m_cameraSystem->getCamera(i)->reprojectionError(chessboardScenePoints.back(),
                                                                           scCalib.imagePointsLeft(),
                                                                           rvecs1, tvecs1);
-        ROS_INFO("[%s] Initial reprojection error (chessboard): %.3f pixels",
-                 m_cameraSystem->getCamera(i * 2)->cameraName().c_str(), err1);
+            ROS_INFO("[%s] Initial reprojection error (chessboard): %.3f pixels",
+                     m_cameraSystem->getCamera(i)->cameraName().c_str(), err1);
 
-        // print out reprojection error from chessboard data for right camera
-        std::vector<cv::Mat> rvecs2(chessboardScenePoints.at(i).size());
-        std::vector<cv::Mat> tvecs2(chessboardScenePoints.at(i).size());
+            // print out reprojection error from chessboard data for right camera
+            std::vector<cv::Mat> rvecs2(chessboardScenePoints.back().size());
+            std::vector<cv::Mat> tvecs2(chessboardScenePoints.back().size());
 
-        for (int j = 0; j < scCalib.cameraPosesRight().rows; ++j)
-        {
-            cv::Mat rvec(3, 1, CV_64F);
-            rvec.at<double>(0) =  scCalib.cameraPosesRight().at<double>(j,0);
-            rvec.at<double>(1) =  scCalib.cameraPosesRight().at<double>(j,1);
-            rvec.at<double>(2) =  scCalib.cameraPosesRight().at<double>(j,2);
+            for (int j = 0; j < scCalib.cameraPosesRight().rows; ++j)
+            {
+                cv::Mat rvec(3, 1, CV_64F);
+                rvec.at<double>(0) =  scCalib.cameraPosesRight().at<double>(j,0);
+                rvec.at<double>(1) =  scCalib.cameraPosesRight().at<double>(j,1);
+                rvec.at<double>(2) =  scCalib.cameraPosesRight().at<double>(j,2);
 
-            cv::Mat tvec(3, 1, CV_64F);
-            tvec.at<double>(0) =  scCalib.cameraPosesRight().at<double>(j,3);
-            tvec.at<double>(1) =  scCalib.cameraPosesRight().at<double>(j,4);
-            tvec.at<double>(2) =  scCalib.cameraPosesRight().at<double>(j,5);
+                cv::Mat tvec(3, 1, CV_64F);
+                tvec.at<double>(0) =  scCalib.cameraPosesRight().at<double>(j,3);
+                tvec.at<double>(1) =  scCalib.cameraPosesRight().at<double>(j,4);
+                tvec.at<double>(2) =  scCalib.cameraPosesRight().at<double>(j,5);
 
-            rvecs2.at(j) = rvec;
-            tvecs2.at(j) = tvec;
-        }
+                rvecs2.at(j) = rvec;
+                tvecs2.at(j) = tvec;
+            }
 
-        double err2 = m_cameraSystem->getCamera(i * 2 + 1)->reprojectionError(chessboardScenePoints.at(i),
+            double err2 = m_cameraSystem->getCamera(i + 1)->reprojectionError(chessboardScenePoints.back(),
                                                                               scCalib.imagePointsRight(),
                                                                               rvecs2, tvecs2);
-        ROS_INFO("[%s] Initial reprojection error (chessboard): %.3f pixels",
-                 m_cameraSystem->getCamera(i * 2 + 1)->cameraName().c_str(), err2);
+            ROS_INFO("[%s] Initial reprojection error (chessboard): %.3f pixels",
+                     m_cameraSystem->getCamera(i + 1)->cameraName().c_str(), err2);
+
+            ++i;
+        }
+    }
+    for (size_t i = 0; i < m_voMap.size(); ++i)
+    {
+        std::pair<int,int>& item = m_voMap.at(i);
+
+        if (item.first == MONO_VO)
+        {
+            mcCalibVec.resize(mcCalibVec.size() + 1);
+
+            CameraCalibration& mcCalib = mcCalibVec.back();
+
+            mcCalib.readChessboardData(chessboardDataFilenames.at(scCalibVec.size() + mcCalibVec.size() - 1));
+
+            nChessboardResiduals += mcCalib.scenePoints().size() *
+                                    mcCalib.scenePoints().front().size();
+
+            chessboardScenePoints.push_back(mcCalib.scenePoints());
+
+            // print out reprojection error from chessboard data for left camera
+            std::vector<cv::Mat> rvecs(chessboardScenePoints.back().size());
+            std::vector<cv::Mat> tvecs(chessboardScenePoints.back().size());
+
+            for (int j = 0; j < mcCalib.cameraPoses().rows; ++j)
+            {
+                cv::Mat rvec(3, 1, CV_64F);
+                rvec.at<double>(0) =  mcCalib.cameraPoses().at<double>(j,0);
+                rvec.at<double>(1) =  mcCalib.cameraPoses().at<double>(j,1);
+                rvec.at<double>(2) =  mcCalib.cameraPoses().at<double>(j,2);
+
+                cv::Mat tvec(3, 1, CV_64F);
+                tvec.at<double>(0) =  mcCalib.cameraPoses().at<double>(j,3);
+                tvec.at<double>(1) =  mcCalib.cameraPoses().at<double>(j,4);
+                tvec.at<double>(2) =  mcCalib.cameraPoses().at<double>(j,5);
+
+                rvecs.at(j) = rvec;
+                tvecs.at(j) = tvec;
+            }
+
+            double err = m_cameraSystem->getCamera(i)->reprojectionError(chessboardScenePoints.back(),
+                                                                         mcCalib.imagePoints(),
+                                                                         rvecs, tvecs);
+            ROS_INFO("[%s] Initial reprojection error (chessboard): %.3f pixels",
+                     m_cameraSystem->getCamera(i)->cameraName().c_str(), err);
+        }
     }
 
     double wChessboardResidual = static_cast<double>(nFeatureSResiduals) /
                                  static_cast<double>(nChessboardResiduals);
 
-    ROS_INFO("Optimizing over %lu features seen by one stereo rig, %lu features seen by multiple stereo rigs, and %lu corners",
+    ROS_INFO("Optimizing over %lu features seen by one camera, %lu features seen by multiple cameras, and %lu corners",
              nFeatureSResiduals, nFeatureMResiduals, nChessboardResiduals);
-    ROS_INFO("Assigned weight of %.2f to residuals corresponding to features seen by multiple stereo rigs.", wFeatureMResidual);
+    ROS_INFO("Assigned weight of %.2f to residuals corresponding to features seen by multiple cameras.", wFeatureMResidual);
     ROS_INFO("Assigned weight of %.2f to corner residuals.", wChessboardResidual);
 
-    std::vector<std::vector<std::vector<double> > > chessboardCameraPoses1(m_svo.size());
+    std::vector<std::vector<std::vector<double> > > chessboardStereoCameraPoses(m_svo.size());
 
-    for (size_t i = 0; i < scCalibs.size(); ++i)
+    for (size_t i = 0; i < scCalibVec.size(); ++i)
     {
-        StereoCameraCalibration& scCalib = scCalibs.at(i);
+        StereoCameraCalibration& scCalib = scCalibVec.at(i);
+
+        int cameraLeftId = scCalib.cameraLeft()->cameraId();
+        int cameraRightId = scCalib.cameraRight()->cameraId();
 
         const cv::Mat& cameraPoses1 = scCalib.cameraPosesLeft();
 
-        chessboardCameraPoses1.at(i).resize(cameraPoses1.rows);
+        chessboardStereoCameraPoses.at(i).resize(cameraPoses1.rows);
 
         const std::vector<std::vector<cv::Point2f> >& imagePoints1 = scCalib.imagePointsLeft();
         const std::vector<std::vector<cv::Point2f> >& imagePoints2 = scCalib.imagePointsRight();
@@ -1005,17 +1183,17 @@ SelfMultiCamCalibration::runFullBA(const std::vector<std::string>& chessboardDat
 
         for (size_t j = 0; j < scenePoints.size(); ++j)
         {
-            chessboardCameraPoses1.at(i).at(j).resize(7);
+            chessboardStereoCameraPoses.at(i).at(j).resize(7);
 
             Eigen::Vector3d rvec1(cameraPoses1.at<double>(j,0),
                                   cameraPoses1.at<double>(j,1),
                                   cameraPoses1.at<double>(j,2));
 
-            AngleAxisToQuaternion(rvec1, chessboardCameraPoses1.at(i).at(j).data());
+            AngleAxisToQuaternion(rvec1, chessboardStereoCameraPoses.at(i).at(j).data());
 
-            chessboardCameraPoses1.at(i).at(j).at(4) = cameraPoses1.at<double>(j,3);
-            chessboardCameraPoses1.at(i).at(j).at(5) = cameraPoses1.at<double>(j,4);
-            chessboardCameraPoses1.at(i).at(j).at(6) = cameraPoses1.at<double>(j,5);
+            chessboardStereoCameraPoses.at(i).at(j).at(4) = cameraPoses1.at<double>(j,3);
+            chessboardStereoCameraPoses.at(i).at(j).at(5) = cameraPoses1.at<double>(j,4);
+            chessboardStereoCameraPoses.at(i).at(j).at(6) = cameraPoses1.at<double>(j,5);
 
             for (size_t k = 0; k < scenePoints.at(j).size(); ++k)
             {
@@ -1024,29 +1202,85 @@ SelfMultiCamCalibration::runFullBA(const std::vector<std::string>& chessboardDat
                 const cv::Point2f& ipt2 = imagePoints2.at(j).at(k);
 
                 ceres::CostFunction* costFunction =
-                    CostFunctionFactory::instance()->generateCostFunction(m_cameraSystem->getCamera(i * 2),
+                    CostFunctionFactory::instance()->generateCostFunction(m_cameraSystem->getCamera(cameraLeftId),
                                                                           Eigen::Vector2d(ipt1.x, ipt1.y),
-                                                                          m_cameraSystem->getCamera(i * 2 + 1),
+                                                                          m_cameraSystem->getCamera(cameraRightId),
                                                                           Eigen::Vector2d(ipt2.x, ipt2.y),
                                                                           Eigen::Vector3d(spt.x, spt.y, spt.z),
                                                                           CAMERA_INTRINSICS | SYSTEM_CAMERA_TRANSFORM | SYSTEM_POSE);
 
                 ceres::LossFunction* lossFunction = new ceres::ScaledLoss(new ceres::CauchyLoss(1.0), wChessboardResidual, ceres::TAKE_OWNERSHIP);
                 problem.AddResidualBlock(costFunction, lossFunction,
-                                         intrinsicCameraParams.at(i * 2).data(),
-                                         intrinsicCameraParams.at(i * 2 + 1).data(),
-                                         q_sys_cam.at(i * 2).coeffs().data(),
-                                         t_sys_cam.at(i * 2).data(),
-                                         q_sys_cam.at(i * 2 + 1).coeffs().data(),
-                                         t_sys_cam.at(i * 2 + 1).data(),
-                                         chessboardCameraPoses1.at(i).at(j).data(),
-                                         chessboardCameraPoses1.at(i).at(j).data() + 4);
+                                         intrinsicCameraParams.at(cameraLeftId).data(),
+                                         intrinsicCameraParams.at(cameraRightId).data(),
+                                         q_sys_cam.at(cameraLeftId).coeffs().data(),
+                                         t_sys_cam.at(cameraLeftId).data(),
+                                         q_sys_cam.at(cameraRightId).coeffs().data(),
+                                         t_sys_cam.at(cameraRightId).data(),
+                                         chessboardStereoCameraPoses.at(i).at(j).data(),
+                                         chessboardStereoCameraPoses.at(i).at(j).data() + 4);
             }
 
             ceres::LocalParameterization* quaternionParameterization =
                 new EigenQuaternionParameterization;
 
-            problem.SetParameterization(chessboardCameraPoses1.at(i).at(j).data(),
+            problem.SetParameterization(chessboardStereoCameraPoses.at(i).at(j).data(),
+                                        quaternionParameterization);
+        }
+    }
+
+    std::vector<std::vector<std::vector<double> > > chessboardMonoCameraPoses(m_mvo.size());
+
+    for (size_t i = 0; i < mcCalibVec.size(); ++i)
+    {
+        CameraCalibration& mcCalib = mcCalibVec.at(i);
+
+        int cameraId = mcCalib.camera()->cameraId();
+
+        const cv::Mat& cameraPoses = mcCalib.cameraPoses();
+
+        chessboardMonoCameraPoses.at(i).resize(cameraPoses.rows);
+
+        const std::vector<std::vector<cv::Point2f> >& imagePoints = mcCalib.imagePoints();
+        const std::vector<std::vector<cv::Point3f> >& scenePoints = chessboardScenePoints.at(scCalibVec.size() + i);
+
+        for (size_t j = 0; j < scenePoints.size(); ++j)
+        {
+            chessboardMonoCameraPoses.at(i).at(j).resize(7);
+
+            Eigen::Vector3d rvec(cameraPoses.at<double>(j,0),
+                                 cameraPoses.at<double>(j,1),
+                                 cameraPoses.at<double>(j,2));
+
+            AngleAxisToQuaternion(rvec, chessboardMonoCameraPoses.at(i).at(j).data());
+
+            chessboardMonoCameraPoses.at(i).at(j).at(4) = cameraPoses.at<double>(j,3);
+            chessboardMonoCameraPoses.at(i).at(j).at(5) = cameraPoses.at<double>(j,4);
+            chessboardMonoCameraPoses.at(i).at(j).at(6) = cameraPoses.at<double>(j,5);
+
+            for (size_t k = 0; k < scenePoints.at(j).size(); ++k)
+            {
+                const cv::Point3f& spt = scenePoints.at(j).at(k);
+                const cv::Point2f& ipt = imagePoints.at(j).at(k);
+
+                ceres::CostFunction* costFunction =
+                    CostFunctionFactory::instance()->generateCostFunction(m_cameraSystem->getCamera(cameraId),
+                                                                          Eigen::Vector3d(spt.x, spt.y, spt.z),
+                                                                          Eigen::Vector2d(ipt.x, ipt.y));
+
+                ceres::LossFunction* lossFunction = new ceres::ScaledLoss(new ceres::CauchyLoss(1.0), wChessboardResidual, ceres::TAKE_OWNERSHIP);
+                problem.AddResidualBlock(costFunction, lossFunction,
+                                         intrinsicCameraParams.at(cameraId).data(),
+                                         q_sys_cam.at(cameraId).coeffs().data(),
+                                         t_sys_cam.at(cameraId).data(),
+                                         chessboardMonoCameraPoses.at(i).at(j).data(),
+                                         chessboardMonoCameraPoses.at(i).at(j).data() + 4);
+            }
+
+            ceres::LocalParameterization* quaternionParameterization =
+                new EigenQuaternionParameterization;
+
+            problem.SetParameterization(chessboardMonoCameraPoses.at(i).at(j).data(),
                                         quaternionParameterization);
         }
     }
@@ -1078,27 +1312,30 @@ SelfMultiCamCalibration::runFullBA(const std::vector<std::string>& chessboardDat
         m_cameraSystem->setGlobalCameraPose(i, H_inv);
     }
 
-    for (size_t i = 0; i < scCalibs.size(); ++i)
+    for (size_t i = 0; i < scCalibVec.size(); ++i)
     {
-        StereoCameraCalibration& scCalib = scCalibs.at(i);
+        StereoCameraCalibration& scCalib = scCalibVec.at(i);
 
-        Eigen::Matrix4d H_1_2 = invertHomogeneousTransform(m_cameraSystem->getGlobalCameraPose(i * 2 + 1)) *
-                                m_cameraSystem->getGlobalCameraPose(i * 2);
+        int cameraLeftId = scCalib.cameraLeft()->cameraId();
+        int cameraRightId = scCalib.cameraRight()->cameraId();
+
+        Eigen::Matrix4d H_1_2 = invertHomogeneousTransform(m_cameraSystem->getGlobalCameraPose(cameraRightId)) *
+                                m_cameraSystem->getGlobalCameraPose(cameraLeftId);
         Eigen::Quaterniond q_1_2(H_1_2.block<3,3>(0,0));
         Eigen::Vector3d t_1_2 = H_1_2.block<3,1>(0,3);
 
         for (int j = 0; j < scCalib.cameraPosesLeft().rows; ++j)
         {
             Eigen::Quaterniond q_1;
-            q_1.x() = chessboardCameraPoses1.at(i).at(j).at(0);
-            q_1.y() = chessboardCameraPoses1.at(i).at(j).at(1);
-            q_1.z() = chessboardCameraPoses1.at(i).at(j).at(2);
-            q_1.w() = chessboardCameraPoses1.at(i).at(j).at(3);
+            q_1.x() = chessboardStereoCameraPoses.at(i).at(j).at(0);
+            q_1.y() = chessboardStereoCameraPoses.at(i).at(j).at(1);
+            q_1.z() = chessboardStereoCameraPoses.at(i).at(j).at(2);
+            q_1.w() = chessboardStereoCameraPoses.at(i).at(j).at(3);
 
             Eigen::Vector3d t_1;
-            t_1(0) = chessboardCameraPoses1.at(i).at(j).at(4);
-            t_1(1) = chessboardCameraPoses1.at(i).at(j).at(5);
-            t_1(2) = chessboardCameraPoses1.at(i).at(j).at(6);
+            t_1(0) = chessboardStereoCameraPoses.at(i).at(j).at(4);
+            t_1(1) = chessboardStereoCameraPoses.at(i).at(j).at(5);
+            t_1(2) = chessboardStereoCameraPoses.at(i).at(j).at(6);
 
             Eigen::AngleAxisd aa_1(q_1);
             Eigen::Vector3d rvec = aa_1.angle() * aa_1.axis();
@@ -1144,11 +1381,11 @@ SelfMultiCamCalibration::runFullBA(const std::vector<std::string>& chessboardDat
             tvecs1.at(j) = tvec;
         }
 
-        double err1 = m_cameraSystem->getCamera(i * 2)->reprojectionError(chessboardScenePoints.at(i),
-                                                                          scCalib.imagePointsLeft(),
-                                                                          rvecs1, tvecs1);
+        double err1 = m_cameraSystem->getCamera(cameraLeftId)->reprojectionError(chessboardScenePoints.at(i),
+                                                                                 scCalib.imagePointsLeft(),
+                                                                                 rvecs1, tvecs1);
         ROS_INFO("[%s] Final reprojection error (chessboard): %.3f pixels",
-                 m_cameraSystem->getCamera(i * 2)->cameraName().c_str(), err1);
+                 m_cameraSystem->getCamera(cameraLeftId)->cameraName().c_str(), err1);
 
         // print out reprojection error from chessboard data for right camera
         std::vector<cv::Mat> rvecs2(chessboardScenePoints.at(i).size());
@@ -1170,26 +1407,83 @@ SelfMultiCamCalibration::runFullBA(const std::vector<std::string>& chessboardDat
             tvecs2.at(j) = tvec;
         }
 
-        double err2 = m_cameraSystem->getCamera(i * 2 + 1)->reprojectionError(chessboardScenePoints.at(i),
-                                                                              scCalib.imagePointsRight(),
-                                                                              rvecs2, tvecs2);
+        double err2 = m_cameraSystem->getCamera(cameraRightId)->reprojectionError(chessboardScenePoints.at(i),
+                                                                                  scCalib.imagePointsRight(),
+                                                                                  rvecs2, tvecs2);
         ROS_INFO("[%s] Final reprojection error (chessboard): %.3f pixels",
-                 m_cameraSystem->getCamera(i * 2 + 1)->cameraName().c_str(), err2);
+                 m_cameraSystem->getCamera(cameraRightId)->cameraName().c_str(), err2);
     }
 
-    for (boost::unordered_set<Point3DFeature*>::iterator it = singletonScenePoints.begin();
-         it != singletonScenePoints.end(); ++it)
+    for (size_t i = 0; i < mcCalibVec.size(); ++i)
     {
-        Point3DFeature* scenePoint = *it;
+        CameraCalibration& mcCalib = mcCalibVec.at(i);
 
-        // reset 3D coordinates to those originally computed from stereo
-        Frame* frame = scenePoint->features2D().front()->frame();
-        FrameSet* frameSet = frame->frameSet();
-        Eigen::Matrix4d pose = invertHomogeneousTransform(frameSet->systemPose()->toMatrix()) *
-                               m_cameraSystem->getGlobalCameraPose(frame->cameraId());
+        int cameraId = mcCalib.camera()->cameraId();
 
-        scenePoint->point() = transformPoint(pose, scenePoint->pointFromStereo());
+        for (int j = 0; j < mcCalib.cameraPoses().rows; ++j)
+        {
+            Eigen::Quaterniond q;
+            q.x() = chessboardMonoCameraPoses.at(i).at(j).at(0);
+            q.y() = chessboardMonoCameraPoses.at(i).at(j).at(1);
+            q.z() = chessboardMonoCameraPoses.at(i).at(j).at(2);
+            q.w() = chessboardMonoCameraPoses.at(i).at(j).at(3);
+
+            Eigen::Vector3d t;
+            t(0) = chessboardMonoCameraPoses.at(i).at(j).at(4);
+            t(1) = chessboardMonoCameraPoses.at(i).at(j).at(5);
+            t(2) = chessboardMonoCameraPoses.at(i).at(j).at(6);
+
+            Eigen::AngleAxisd aa(q);
+            Eigen::Vector3d rvec = aa.angle() * aa.axis();
+
+            mcCalib.cameraPoses().at<double>(j,0) = rvec(0);
+            mcCalib.cameraPoses().at<double>(j,1) = rvec(1);
+            mcCalib.cameraPoses().at<double>(j,2) = rvec(2);
+            mcCalib.cameraPoses().at<double>(j,3) = t(0);
+            mcCalib.cameraPoses().at<double>(j,4) = t(1);
+            mcCalib.cameraPoses().at<double>(j,5) = t(2);
+        }
+
+        // print out reprojection error from chessboard data for camera
+        std::vector<cv::Mat> rvecs(chessboardScenePoints.at(scCalibVec.size() + i).size());
+        std::vector<cv::Mat> tvecs(chessboardScenePoints.at(scCalibVec.size() + i).size());
+
+        for (int j = 0; j < mcCalib.cameraPoses().rows; ++j)
+        {
+            cv::Mat rvec(3, 1, CV_64F);
+            rvec.at<double>(0) =  mcCalib.cameraPoses().at<double>(j,0);
+            rvec.at<double>(1) =  mcCalib.cameraPoses().at<double>(j,1);
+            rvec.at<double>(2) =  mcCalib.cameraPoses().at<double>(j,2);
+
+            cv::Mat tvec(3, 1, CV_64F);
+            tvec.at<double>(0) =  mcCalib.cameraPoses().at<double>(j,3);
+            tvec.at<double>(1) =  mcCalib.cameraPoses().at<double>(j,4);
+            tvec.at<double>(2) =  mcCalib.cameraPoses().at<double>(j,5);
+
+            rvecs.at(j) = rvec;
+            tvecs.at(j) = tvec;
+        }
+
+        double err = m_cameraSystem->getCamera(cameraId)->reprojectionError(chessboardScenePoints.at(scCalibVec.size() + i),
+                                                                            mcCalib.imagePoints(),
+                                                                            rvecs, tvecs);
+        ROS_INFO("[%s] Final reprojection error (chessboard): %.3f pixels",
+                 m_cameraSystem->getCamera(cameraId)->cameraName().c_str(), err);
     }
+
+//    for (boost::unordered_set<Point3DFeature*>::iterator it = singletonScenePoints.begin();
+//         it != singletonScenePoints.end(); ++it)
+//    {
+//        Point3DFeature* scenePoint = *it;
+//
+//        // reset 3D coordinates to those originally computed from stereo
+//        Frame* frame = scenePoint->features2D().front()->frame();
+//        FrameSet* frameSet = frame->frameSet();
+//        Eigen::Matrix4d pose = invertHomogeneousTransform(frameSet->systemPose()->toMatrix()) *
+//                               m_cameraSystem->getGlobalCameraPose(frame->cameraId());
+//
+//        scenePoint->point() = transformPoint(pose, scenePoint->pointFromStereo());
+//    }
 
     double avgError, maxError, avgScenePointDepth;
     size_t featureCount;

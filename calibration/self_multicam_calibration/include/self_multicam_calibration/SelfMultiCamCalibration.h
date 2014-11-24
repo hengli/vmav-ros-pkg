@@ -1,6 +1,7 @@
 #ifndef SELFMULTICAMCALIBRATION_H
 #define SELFMULTICAMCALIBRATION_H
 
+#include "mono_vo/MonoVO.h"
 #include "sparse_graph/SparseGraph.h"
 #include "sparse_graph/SparseGraphViz.h"
 #include "stereo_vo/StereoVO.h"
@@ -43,7 +44,7 @@ private:
                int scenePointFlag = 0);
     void runBA(const SparseGraphPtr& graph,
                const boost::shared_ptr<SparseGraphViz>& graphViz) const;
-    void runFullBA(const std::vector<std::string>& chessboardDataFilenames);
+    void runJointOptimization(const std::vector<std::string>& chessboardDataFilenames);
     bool runPoseIMUCalibration(void);
 
     std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> > computeRelativeSystemPoses(const std::vector<FrameSetPtr>& frameSets) const;
@@ -57,8 +58,16 @@ private:
                           double& avgScenePointDepth,
                           size_t& featureCount) const;
 
+    enum
+    {
+        MONO_VO = 0,
+        STEREO_VO = 1
+    };
+
     ros::NodeHandle m_nh;
     CameraSystemPtr m_cameraSystem;
+    std::vector<boost::shared_ptr<MonoVO> > m_mvo;
+    std::vector<std::pair<int,int> > m_voMap;
     std::vector<SparseGraphPtr> m_subSparseGraphs;
     SparseGraphPtr m_sparseGraph;
     std::vector<boost::shared_ptr<StereoVO> > m_svo;

@@ -11,12 +11,14 @@
 
   <build_depend>camera_calibration</build_depend>
   <build_depend>hand_eye_calibration</build_depend>
+  <build_depend>mono_vo</build_depend>
   <build_depend>pose_graph</build_depend>
   <build_depend>pose_imu_calibration</build_depend>
   <build_depend>stereo_vo</build_depend>
 
   <run_depend>camera_calibration</run_depend>
   <run_depend>hand_eye_calibration</run_depend>
+  <run_depend>mono_vo</run_depend>
   <run_depend>pose_graph</run_depend>
   <run_depend>pose_imu_calibration</run_depend>
   <run_depend>stereo_vo</run_depend>

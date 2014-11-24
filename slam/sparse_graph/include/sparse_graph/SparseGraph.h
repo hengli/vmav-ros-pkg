@@ -176,8 +176,8 @@ public:
 
     enum
     {
-        OBSERVED_BY_STEREO_RIG_MULTIPLE_TIMES = 0x1,
-        OBSERVED_BY_MULTIPLE_STEREO_RIGS = 0x2
+        OBSERVED_BY_CAMERA_MULTIPLE_TIMES = 0x1,
+        OBSERVED_BY_MULTIPLE_CAMERAS = 0x2
     };
 
     Point3DFeature();
