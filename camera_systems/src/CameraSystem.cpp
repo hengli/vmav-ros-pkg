@@ -70,13 +70,13 @@ CameraSystem::readFromTextFile(const std::string& filename,
     std::vector<bool> stereoFlagVec;
     std::string line;
     size_t lineCount = 0;
+    std::string cameraName;
 
     while (std::getline(ifs, line))
     {
         std::istringstream iss(line);
         int step = lineCount % 5;
 
-        std::string cameraName;
         double H_data[12];
 
         switch (step)

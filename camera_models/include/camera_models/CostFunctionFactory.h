@@ -20,7 +20,8 @@ enum
     SYSTEM_CAMERA_TRANSFORM = 0x2,
     STEREO_TRANSFORM = 0x4,
     CAMERA_POSE = 0x8,
-    SYSTEM_POSE = 0x16
+    SYSTEM_POSE = 0x10,
+    SCENE_POINT = 0x20
 };
 
 class CostFunctionFactory
@@ -37,9 +38,10 @@ public:
                                               const Eigen::Vector3d& observed_P,
                                               const Eigen::Vector2d& observed_p) const;
 
-    ceres::CostFunction* generateCostFunction(const Eigen::Quaterniond& q_sys_cam,
-                                              const Eigen::Vector3d& t_sys_cam,
-                                              const Eigen::Vector3d& observed_ray) const;
+    ceres::CostFunction* generateCostFunction(const Eigen::Quaterniond& q,
+                                              const Eigen::Vector3d& t,
+                                              const Eigen::Vector3d& observed_ray,
+                                              int variablesToOptimize) const;
 
     ceres::CostFunction* generateCostFunction(const Eigen::Vector3d& observed_ray) const;
 
@@ -58,7 +60,7 @@ public:
                                               const CameraConstPtr& cameraR,
                                               const Eigen::Vector2d& observed_p_r,
                                               const Eigen::Vector3d& observed_P,
-                                              int flags) const;
+                                              int variablesToOptimize) const;
 
 private:
     static boost::shared_ptr<CostFunctionFactory> m_instance;

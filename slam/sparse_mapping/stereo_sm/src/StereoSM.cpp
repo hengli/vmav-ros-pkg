@@ -247,7 +247,8 @@ StereoSM::runBA(void)
                     ceres::CostFunction* costFunction =
                         CostFunctionFactory::instance()->generateCostFunction(q_veh_cam.at(cameraId),
                                                                               t_veh_cam.at(cameraId),
-                                                                              feature->ray());
+                                                                              feature->ray(),
+                                                                              SYSTEM_POSE | SCENE_POINT);
 
                     problem.AddResidualBlock(costFunction, lossFunction,
                                              frameSet->systemPose()->rotationData(),

@@ -41,6 +41,8 @@ private:
                int minLoopCorrespondences2D3D,
                int nImageMatches,
                const cv::Mat& matchingMask = cv::Mat());
+    void runLimitedBA(const SparseGraphPtr& graph,
+                      SparseGraphViz& graphViz) const;
     void runBA(const SparseGraphPtr& graph,
                const boost::shared_ptr<SparseGraphViz>& graphViz) const;
     void runJointOptimization(const std::vector<std::string>& chessboardDataFilenames);
@@ -48,7 +50,9 @@ private:
 
     std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> > computeRelativeSystemPoses(const std::vector<FrameSetPtr>& frameSets) const;
 
-    void reconstructScenePoint(Point3DFeaturePtr& scenePoint) const;
+    void reconstructScenePoint(Point2DFeature* f1,
+                               Point2DFeature* f2,
+                               const Eigen::Matrix4d& H) const;
 
     void mergeMaps(void);
 

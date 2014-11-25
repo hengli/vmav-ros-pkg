@@ -234,7 +234,8 @@ GCamIMU::estimateH(const std::vector<PLineCorrespondence, Eigen::aligned_allocat
         ceres::CostFunction* costFunction =
             CostFunctionFactory::instance()->generateCostFunction(q_sys_cam.at(lc.cameraId1()),
                                                                   t_sys_cam.at(lc.cameraId1()),
-                                                                  lc.ray1());
+                                                                  lc.ray1(),
+                                                                  SYSTEM_POSE | SCENE_POINT);
 
         problem.AddResidualBlock(costFunction, lossFunction, q_zero, t_zero, scenePoints.at(i).data());
 
@@ -243,7 +244,8 @@ GCamIMU::estimateH(const std::vector<PLineCorrespondence, Eigen::aligned_allocat
         costFunction =
             CostFunctionFactory::instance()->generateCostFunction(q_sys_cam.at(lc.cameraId2()),
                                                                   t_sys_cam.at(lc.cameraId2()),
-                                                                  lc.ray2());
+                                                                  lc.ray2(),
+                                                                  SYSTEM_POSE | SCENE_POINT);
 
         problem.AddResidualBlock(costFunction, lossFunction, q.coeffs().data(), t, scenePoints.at(i).data());
     }

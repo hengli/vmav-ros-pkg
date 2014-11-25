@@ -95,7 +95,8 @@ LocalMonoBA::optimize(void)
             ceres::CostFunction* costFunction =
                 CostFunctionFactory::instance()->generateCostFunction(m_q_s_c,
                                                                       m_t_s_c,
-                                                                      feature->ray());
+                                                                      feature->ray(),
+                                                                      SYSTEM_POSE | SCENE_POINT);
 
             problem.AddResidualBlock(costFunction, lossFunction,
                                      frameSet->systemPose()->rotationData(),

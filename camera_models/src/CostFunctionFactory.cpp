@@ -121,7 +121,47 @@ private:
 class ReprojectionError3
 {
 public:
-    ReprojectionError3(const Eigen::Matrix4d& H,
+    ReprojectionError3(const Eigen::Quaterniond& q_sys,
+                       const Eigen::Vector3d& t_sys,
+                       const Eigen::Vector3d& observed_ray)
+     : m_q_sys(q_sys)
+     , m_t_sys(t_sys)
+     , m_observed_ray(observed_ray)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const q_sys_cam,
+                    const T* const t_sys_cam,
+                    const T* const point,
+                    T* residuals) const
+    {
+        Eigen::Matrix<T,3,1> P(point);
+
+        Eigen::Quaternion<T> q_cam = Eigen::Quaternion<T>(q_sys_cam) * m_q_sys.cast<T>();
+        Eigen::Matrix<T,3,1> t_cam = Eigen::Quaternion<T>(q_sys_cam) * m_t_sys.cast<T>() + Eigen::Matrix<T,3,1>(t_sys_cam);
+
+        Eigen::Matrix<T,3,1> P_cam = q_cam * P + t_cam;
+        Eigen::Matrix<T,3,1> ray_est = P_cam.normalized();
+
+        residuals[0] = T(1) - ray_est.dot(m_observed_ray.cast<T>());
+
+        return true;
+    }
+
+private:
+    Eigen::Quaterniond m_q_sys;
+    Eigen::Vector3d m_t_sys;
+
+    // observed ray
+    Eigen::Vector3d m_observed_ray;
+};
+
+class ReprojectionError4
+{
+public:
+    ReprojectionError4(const Eigen::Matrix4d& H,
                        const Eigen::Vector3d& observed_ray)
      : m_H(H)
      , m_observed_ray(observed_ray)
@@ -484,15 +524,27 @@ CostFunctionFactory::generateCostFunction(const CameraConstPtr& camera,
 }
 
 ceres::CostFunction*
-CostFunctionFactory::generateCostFunction(const Eigen::Quaterniond& q_sys_cam,
-                                          const Eigen::Vector3d& t_sys_cam,
-                                          const Eigen::Vector3d& observed_ray) const
+CostFunctionFactory::generateCostFunction(const Eigen::Quaterniond& q,
+                                          const Eigen::Vector3d& t,
+                                          const Eigen::Vector3d& observed_ray,
+                                          int variablesToOptimize) const
 {
     ceres::CostFunction* costFunction = 0;
 
-    costFunction =
-        new ceres::AutoDiffCostFunction<ReprojectionError2, 1, 4, 3, 3>(
-            new ReprojectionError2(q_sys_cam, t_sys_cam, observed_ray));
+    switch (variablesToOptimize)
+    {
+    case SYSTEM_POSE | SCENE_POINT:
+        costFunction =
+            new ceres::AutoDiffCostFunction<ReprojectionError2, 1, 4, 3, 3>(
+                new ReprojectionError2(q, t, observed_ray));
+        break;
+    case SYSTEM_CAMERA_TRANSFORM | SCENE_POINT:
+        costFunction =
+            new ceres::AutoDiffCostFunction<ReprojectionError3, 1, 4, 3, 3>(
+                new ReprojectionError3(q, t, observed_ray));
+        break;
+        break;
+    }
 
     return costFunction;
 }
@@ -516,8 +568,8 @@ CostFunctionFactory::generateCostFunction(const Eigen::Matrix4d& H,
     ceres::CostFunction* costFunction = 0;
 
     costFunction =
-        new ceres::AutoDiffCostFunction<ReprojectionError3, 1, 3>(
-            new ReprojectionError3(H, observed_ray));
+        new ceres::AutoDiffCostFunction<ReprojectionError4, 1, 3>(
+            new ReprojectionError4(H, observed_ray));
 
     return costFunction;
 }
@@ -546,7 +598,7 @@ CostFunctionFactory::generateCostFunction(const CameraConstPtr& cameraL,
                                           const CameraConstPtr& cameraR,
                                           const Eigen::Vector2d& observed_p_r,
                                           const Eigen::Vector3d& observed_P,
-                                          int flags) const
+                                          int variablesToOptimize) const
 {
     ceres::CostFunction* costFunction = 0;
 
@@ -555,7 +607,7 @@ CostFunctionFactory::generateCostFunction(const CameraConstPtr& cameraL,
         return costFunction;
     }
 
-    switch (flags)
+    switch (variablesToOptimize)
     {
     case CAMERA_INTRINSICS | STEREO_TRANSFORM | CAMERA_POSE:
     {

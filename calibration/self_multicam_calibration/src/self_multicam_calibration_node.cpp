@@ -19,6 +19,8 @@
 #include "cauldron/EigenUtils.h"
 #include "self_multicam_calibration/SelfMultiCamCalibration.h"
 
+#define N_CAMERAS 4
+
 bool
 parseTokenFromString(std::string& s, std::string& token, size_t& pos)
 {
@@ -171,10 +173,10 @@ voCallback(const sensor_msgs::ImageConstPtr& imageMsg0,
     imageMsgs.push_back(imageMsg2);
     imageMsgs.push_back(imageMsg3);
 
-    std::vector<cv::Mat> images(4);
+    std::vector<cv::Mat> images(N_CAMERAS);
     try
     {
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < N_CAMERAS; ++i)
         {
             cv_bridge::CvImageConstPtr cv_ptr = cv_bridge::toCvShare(imageMsgs.at(i));
             cv_ptr->image.copyTo(images.at(i));
@@ -323,7 +325,7 @@ main(int argc, char** argv)
         imagePubs.at(i) = nh.advertise<sensor_msgs::Image>(camImageTopicNames.at(i), 2);
     }
 
-    boost::dynamic_bitset<> init(4);
+    boost::dynamic_bitset<> init(N_CAMERAS);
     BOOST_FOREACH(rosbag::MessageInstance const m, view)
     {
         if (!ros::ok())
@@ -331,9 +333,9 @@ main(int argc, char** argv)
             break;
         }
 
-        if (init.count() < 4)
+        if (init.count() < N_CAMERAS)
         {
-            for (int i = 0; i < 4; ++i)
+            for (int i = 0; i < N_CAMERAS; ++i)
             {
                 if (m.getTopic() == camInfoTopicNames.at(i))
                 {
@@ -359,7 +361,7 @@ main(int argc, char** argv)
                 }
             }
 
-            if (init.count() == 4)
+            if (init.count() == N_CAMERAS)
             {
                 size_t mark = 0;
                 for (size_t i = 0; i < cameraNs.size(); ++i)
@@ -369,6 +371,9 @@ main(int argc, char** argv)
                         Eigen::Matrix4d H = px::invertHomogeneousTransform(cameraSystem->getGlobalCameraPose(mark)) *
                                             cameraSystem->getGlobalCameraPose(mark + 1);
 
+                        cameras.at(mark)->cameraType() = "stereo";
+                        cameras.at(mark + 1)->cameraType() = "stereo";
+
                         cameraSystem->setGlobalCameraPose(mark, Eigen::Matrix4d::Identity());
                         cameraSystem->setGlobalCameraPose(mark + 1, H);
 
@@ -377,6 +382,8 @@ main(int argc, char** argv)
                     }
                     else
                     {
+                        cameras.at(mark)->cameraType() = "mono";
+
                         cameraSystem->setGlobalCameraPose(mark, Eigen::Matrix4d::Identity());
 
                         cameraSystem->setCamera(mark, cameras.at(mark));
@@ -406,7 +413,7 @@ main(int argc, char** argv)
                 break;
             }
 
-            for (int i = 0; i < 4; ++i)
+            for (int i = 0; i < N_CAMERAS; ++i)
             {
                 if (m.getTopic() == camImageTopicNames.at(i))
                 {
