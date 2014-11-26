@@ -659,6 +659,41 @@ SelfMultiCamCalibration::runPG(const SparseGraphPtr& graph,
                                int nImageMatches,
                                const cv::Mat& matchingMask)
 {
+    // For each scene point, record its coordinates with respect to the
+    // first camera it was observed in.
+    boost::unordered_map<Point3DFeature*, Eigen::Vector3d> scenePointMap;
+    for (size_t i = 0; i < graph->frameSetSegments().size(); ++i)
+    {
+        FrameSetSegment& segment = graph->frameSetSegment(i);
+
+        for (size_t j = 0; j < segment.size(); ++j)
+        {
+            FrameSetPtr& frameSet = segment.at(j);
+
+            Eigen::Matrix4d H = frameSet->systemPose()->toMatrix();
+
+            for (size_t k = 0; k < frameSet->frames().size(); ++k)
+            {
+                FramePtr& frame = frameSet->frames().at(k);
+                std::vector<Point2DFeaturePtr>& features = frame->features2D();
+
+                for (size_t l = 0; l < features.size(); ++l)
+                {
+                    Point3DFeaturePtr& scenePoint = features.at(l)->feature3D();
+
+                    if (scenePointMap.find(scenePoint.get()) != scenePointMap.end())
+                    {
+                        continue;
+                    }
+
+                    Eigen::Vector3d P = transformPoint(H, scenePoint->point());
+
+                    scenePointMap.insert(std::make_pair(scenePoint.get(), P));
+                }
+            }
+        }
+    }
+
     PoseGraphPtr poseGraph = boost::make_shared<PoseGraph>(m_cameraSystem,
                                                            boost::ref(graph),
                                                            matchingMask,
@@ -683,6 +718,41 @@ SelfMultiCamCalibration::runPG(const SparseGraphPtr& graph,
 
     pgv.visualize("pose_graph_after");
 
+    // For each scene point, compute its new global coordinates.
+    boost::unordered_set<Point3DFeature*> scenePointSet;
+    for (size_t i = 0; i < graph->frameSetSegments().size(); ++i)
+    {
+        FrameSetSegment& segment = graph->frameSetSegment(i);
+
+        for (size_t j = 0; j < segment.size(); ++j)
+        {
+            FrameSetPtr& frameSet = segment.at(j);
+
+            Eigen::Matrix4d H = invertHomogeneousTransform(frameSet->systemPose()->toMatrix());
+
+            for (size_t k = 0; k < frameSet->frames().size(); ++k)
+            {
+                FramePtr& frame = frameSet->frames().at(k);
+
+                std::vector<Point2DFeaturePtr>& features = frame->features2D();
+                for (size_t l = 0; l < features.size(); ++l)
+                {
+                    Point3DFeaturePtr& scenePoint = features.at(l)->feature3D();
+
+                    if (scenePointSet.find(scenePoint.get()) != scenePointSet.end())
+                    {
+                        continue;
+                    }
+
+                    Eigen::Vector3d P = scenePointMap[scenePoint.get()];
+                    scenePoint->point() = transformPoint(H, P);
+
+                    scenePointSet.insert(scenePoint.get());
+                }
+            }
+        }
+    }
+
     // merge pairs of duplicate scene points
     std::vector<std::pair<Point2DFeaturePtr, Point3DFeaturePtr> > corr2D3D = poseGraph->getCorrespondences2D3D();
 
@@ -692,6 +762,11 @@ SelfMultiCamCalibration::runPG(const SparseGraphPtr& graph,
         Point3DFeaturePtr scenePoint1 = corr2D3D.at(i).first->feature3D();
         Point3DFeaturePtr scenePoint2 = corr2D3D.at(i).second;
 
+        if (scenePoint1 == scenePoint2)
+        {
+            continue;
+        }
+
         if (scenePoint1->features2D().front()->frame()->cameraId() == scenePoint2->features2D().front()->frame()->cameraId())
         {
             scenePoint1->attributes() |= Point3DFeature::OBSERVED_BY_CAMERA_MULTIPLE_TIMES;
@@ -699,11 +774,6 @@ SelfMultiCamCalibration::runPG(const SparseGraphPtr& graph,
         else
         {
             scenePoint1->attributes() |= Point3DFeature::OBSERVED_BY_MULTIPLE_CAMERAS;
-        }
-
-        if (scenePoint1 == scenePoint2)
-        {
-            continue;
         }
 
         bool merge = false;
@@ -738,75 +808,13 @@ SelfMultiCamCalibration::runPG(const SparseGraphPtr& graph,
 
         if (merge)
         {
+            scenePoint1->point() = 0.5 * (scenePoint1->point() + scenePoint2->point());
+
             ++nMergedScenePoints;
         }
     }
 
     ROS_INFO("Merged %d pairs of duplicate scene points.", nMergedScenePoints);
-
-    // reconstruct scene points
-    boost::unordered_set<Point3DFeaturePtr> scenePoints;
-
-    for (size_t i = 0; i < graph->frameSetSegments().size(); ++i)
-    {
-        FrameSetSegment& segment = graph->frameSetSegment(i);
-
-        for (size_t j = 0; j < segment.size(); ++j)
-        {
-            FrameSetPtr& frameSet = segment.at(j);
-
-            for (size_t k = 0; k < frameSet->frames().size(); ++k)
-            {
-                FramePtr& frame = frameSet->frames().at(k);
-
-                std::vector<Point2DFeaturePtr>& features = frame->features2D();
-
-                for (size_t l = 0; l < features.size(); ++l)
-                {
-                    Point3DFeaturePtr& scenePoint = features.at(l)->feature3D();
-
-                    scenePoints.insert(scenePoint);
-                }
-            }
-        }
-    }
-
-    for (boost::unordered_set<Point3DFeaturePtr>::iterator it = scenePoints.begin();
-             it != scenePoints.end(); ++it)
-    {
-        Point3DFeaturePtr scenePoint = *it;
-
-        // reset 3D coordinates to those originally computed from stereo
-        Frame* frame = scenePoint->features2D().front()->frame();
-        FrameSet* frameSet = frame->frameSet();
-        Eigen::Matrix4d pose = invertHomogeneousTransform(frameSet->systemPose()->toMatrix()) *
-                               m_cameraSystem->getGlobalCameraPose(frame->cameraId());
-
-        scenePoint->point() = transformPoint(pose, scenePoint->pointFromStereo());
-
-        ceres::Problem problem;
-        ceres::Solver::Options options;
-        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-        options.max_num_iterations = 100;
-
-        for (size_t i = 0; i < scenePoint->features2D().size(); ++i)
-        {
-            Point2DFeature* feature = scenePoint->features2D().at(i);
-            Frame* frame = feature->frame();
-            FrameSet* frameSet = frame->frameSet();
-
-            Eigen::Matrix4d H = invertHomogeneousTransform(m_cameraSystem->getGlobalCameraPose(frame->cameraId())) *
-                                frameSet->systemPose()->toMatrix();
-
-            ceres::CostFunction* costFunction =
-                CostFunctionFactory::instance()->generateCostFunction(H, feature->ray());
-
-            problem.AddResidualBlock(costFunction, 0, scenePoint->pointData());
-        }
-
-        ceres::Solver::Summary summary;
-        ceres::Solve(options, &problem, &summary);
-    }
 
     reprojErrorStats(graph, avgError, maxError, avgScenePointDepth, featureCount);
 
