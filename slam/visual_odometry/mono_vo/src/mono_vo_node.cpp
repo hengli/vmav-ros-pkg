@@ -141,6 +141,7 @@ main(int argc, char** argv)
     px::CameraPtr camera = px::CameraFactory::instance()->generateCamera(cameraInfo);
 
     px::CameraSystemPtr cameraSystem = boost::make_shared<px::CameraSystem>(1);
+    cameraSystem->setCamera(0, camera);
     cameraSystem->setGlobalCameraPose(0, cameraInfo->pose);
 
     px::MonoVO mvo(cameraSystem, 0, true);
