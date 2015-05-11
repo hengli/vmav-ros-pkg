@@ -611,16 +611,19 @@ SelfMultiCamCalibration::runHandEyeCalibration(void)
 
         if (item.first == STEREO_VO)
         {
-            HandEyeCalibration hec;
+            if (stereoVOId > 0)
+            {
+                HandEyeCalibration hec;
 
-            Eigen::Matrix4d H_s_0;
-            hec.solve(H.at(stereoVOId), H.at(0), H_s_0);
+                Eigen::Matrix4d H_s_0;
+                hec.solve(H.at(stereoVOId), H.at(0), H_s_0);
 
-            m_cameraSystem->setGlobalCameraPose(i, H_s_0 * m_cameraSystem->getGlobalCameraPose(i));
-            m_cameraSystem->setGlobalCameraPose(i + 1, H_s_0 * m_cameraSystem->getGlobalCameraPose(i + 1));
+                m_cameraSystem->setGlobalCameraPose(i, H_s_0 * m_cameraSystem->getGlobalCameraPose(i));
+                m_cameraSystem->setGlobalCameraPose(i + 1, H_s_0 * m_cameraSystem->getGlobalCameraPose(i + 1));
 
-            ROS_INFO("Initial transform between stereo cameras 0 and %d:", stereoVOId + 1);
-            ROS_INFO_STREAM(H_s_0);
+                ROS_INFO("Initial transform between stereo cameras 0 and %d:", stereoVOId);
+                ROS_INFO_STREAM(H_s_0);
+            }
 
             ++stereoVOId;
             ++i;
@@ -642,7 +645,7 @@ SelfMultiCamCalibration::runHandEyeCalibration(void)
 
             m_cameraSystem->setGlobalCameraPose(i, H_m_0 * m_cameraSystem->getGlobalCameraPose(i));
 
-            ROS_INFO("Initial transform between stereo camera 0 and monocular camera %d:", monoVOId + 1);
+            ROS_INFO("Initial transform between stereo camera 0 and monocular camera %d:", monoVOId);
             ROS_INFO_STREAM(H_m_0);
 
             ++monoVOId;
@@ -1712,7 +1715,7 @@ SelfMultiCamCalibration::reconstructScenePoint(Point2DFeature* f1,
 //    }
 
     Point3DFeaturePtr& p3D = f1->feature3D();
-    p3D->point() = transformPoint(m_cameraSystem->getGlobalCameraPose(frame1->cameraId()), P1);
+    p3D->point() = P1;
     p3D->pointFromStereo() = p3D->point();
 }
 
@@ -1811,7 +1814,8 @@ SelfMultiCamCalibration::mergeMaps(void)
                 // reset 3D coordinates to those originally computed from stereo
                 Frame* frame = scenePoint->features2D().front()->frame();
                 FrameSet* frameSet = frame->frameSet();
-                Eigen::Matrix4d pose = invertHomogeneousTransform(frameSet->systemPose()->toMatrix());
+                Eigen::Matrix4d pose = invertHomogeneousTransform(frameSet->systemPose()->toMatrix()) *
+                                                                  m_cameraSystem->getGlobalCameraPose(frame->cameraId());
 
                 scenePoint->point() = transformPoint(pose, scenePoint->pointFromStereo());
             }
@@ -1842,8 +1846,10 @@ SelfMultiCamCalibration::mergeMaps(void)
                                       scenePoint->features2D().at(1),
                                       H);
 
-                scenePoint->point() = transformPoint(invertHomogeneousTransform(frameSet1->systemPose()->toMatrix()),
-                                                     scenePoint->point());
+                Eigen::Matrix4d pose = invertHomogeneousTransform(frameSet1->systemPose()->toMatrix()) *
+                                                                  m_cameraSystem->getGlobalCameraPose(frame1->cameraId());
+
+                scenePoint->point() = transformPoint(pose, scenePoint->pointFromStereo());
             }
         }
     }
